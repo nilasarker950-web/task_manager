@@ -1,0 +1,105 @@
+{
+  "entities": {
+    "Task": {
+      "title": "Task",
+      "description": "A cloud task item created and managed by a user",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique task identifier"
+        },
+        "userId": {
+          "type": "string",
+          "description": "Firebase Auth UID of the task owner"
+        },
+        "userEmail": {
+          "type": "string",
+          "description": "Email of the task creator"
+        },
+        "userName": {
+          "type": "string",
+          "description": "Name of the task creator"
+        },
+        "taskName": {
+          "type": "string",
+          "description": "Name or title of the task",
+          "minLength": 1,
+          "maxLength": 200
+        },
+        "description": {
+          "type": "string",
+          "description": "Detailed description of the task",
+          "maxLength": 2000
+        },
+        "deadline": {
+          "type": "string",
+          "description": "ISO date string for task deadline"
+        },
+        "status": {
+          "type": "string",
+          "description": "Current status of the task",
+          "enum": ["Pending", "Completed"]
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "Creation timestamp in ISO format"
+        },
+        "updatedAt": {
+          "type": "string",
+          "description": "Last update timestamp in ISO format"
+        }
+      },
+      "required": ["userId", "taskName", "deadline", "status", "createdAt", "updatedAt"]
+    },
+    "UserProfile": {
+      "title": "UserProfile",
+      "description": "User profile metadata",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Firebase Auth UID"
+        },
+        "name": {
+          "type": "string",
+          "description": "Display name of the user",
+          "maxLength": 100
+        },
+        "email": {
+          "type": "string",
+          "description": "Email of the user",
+          "maxLength": 150
+        },
+        "avatarUrl": {
+          "type": "string",
+          "description": "Avatar URL of the user",
+          "maxLength": 500
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "User creation timestamp"
+        },
+        "lastLoginAt": {
+          "type": "string",
+          "description": "User last login timestamp"
+        }
+      },
+      "required": ["id", "name", "email", "createdAt"]
+    }
+  },
+  "firestore": {
+    "/tasks/{taskId}": {
+      "schema": {
+        "$ref": "#/entities/Task"
+      },
+      "description": "Collection of tasks stored per user"
+    },
+    "/users/{userId}": {
+      "schema": {
+        "$ref": "#/entities/UserProfile"
+      },
+      "description": "Collection of user profile documents"
+    }
+  }
+}

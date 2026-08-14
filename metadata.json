@@ -1,0 +1,6 @@
+{
+  "name": "Cloud Task Manager",
+  "description": "A cloud computing mini-project task manager backed by Firebase Firestore and Authentication with real-time sync, deadline tracking, and task lifecycle management.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
