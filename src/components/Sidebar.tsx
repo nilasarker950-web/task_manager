@@ -100,7 +100,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
       {/* Sticky Desktop & Off-canvas Mobile Sidebar Panel */}
       <aside
         id="app-sidebar"
-        className={`fixed top-0 bottom-0 left-0 z-40 w-68 sm:w-72 border-r flex flex-col transition-all duration-200 ease-in-out lg:sticky lg:top-16 lg:h-[calc(100vh-4rem)] lg:self-start lg:shrink-0 lg:z-20 ${
+        className={`fixed top-0 bottom-0 left-0 z-40 w-68 sm:w-72 border-r flex flex-col overflow-hidden transition-all duration-200 ease-in-out lg:sticky lg:top-16 lg:h-[calc(100vh-4rem)] lg:self-start lg:shrink-0 lg:z-20 ${
           isDark
             ? 'bg-slate-900/95 border-slate-800 text-slate-100'
             : 'bg-white/95 border-slate-200/90 text-slate-800'

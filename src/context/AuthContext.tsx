@@ -6,6 +6,8 @@ import {
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
   updateProfile,
+  updatePassword,
+  sendPasswordResetEmail,
   signInAnonymously,
   signOut,
 } from 'firebase/auth';
@@ -23,6 +25,9 @@ interface AuthContextType {
   signUpWithEmail: (name: string, email: string, password: string) => Promise<void>;
   signInAsGuest: () => Promise<void>;
   logout: () => Promise<void>;
+  updateUserProfile: (updates: { name?: string; avatarUrl?: string; avatarColor?: string }) => Promise<void>;
+  changePassword: (newPassword: string) => Promise<void>;
+  sendPasswordReset: (email: string) => Promise<void>;
   authError: string | null;
   clearAuthError: () => void;
 }
@@ -174,6 +179,86 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
+  const updateUserProfile = async (updates: { name?: string; avatarUrl?: string; avatarColor?: string }) => {
+    setAuthError(null);
+    try {
+      if (auth.currentUser) {
+        const fbUpdates: { displayName?: string; photoURL?: string } = {};
+        if (updates.name !== undefined) fbUpdates.displayName = updates.name.trim();
+        if (updates.avatarUrl !== undefined) fbUpdates.photoURL = updates.avatarUrl;
+        await updateProfile(auth.currentUser, fbUpdates);
+      }
+
+      const updatedProfile: UserProfile = {
+        id: currentUser?.id || auth.currentUser?.uid || 'user',
+        name: updates.name !== undefined ? updates.name.trim() : (currentUser?.name || 'User'),
+        email: currentUser?.email || auth.currentUser?.email || 'user@taskpulse.local',
+        avatarUrl: updates.avatarUrl !== undefined ? updates.avatarUrl : currentUser?.avatarUrl,
+        avatarColor: updates.avatarColor !== undefined ? updates.avatarColor : currentUser?.avatarColor,
+        isAnonymous: currentUser?.isAnonymous ?? auth.currentUser?.isAnonymous ?? false,
+      };
+
+      setCurrentUser(updatedProfile);
+
+      if (updatedProfile.isAnonymous || updatedProfile.id.startsWith('guest_')) {
+        localStorage.setItem(LOCAL_GUEST_KEY, JSON.stringify(updatedProfile));
+      } else {
+        await syncUserProfile(updatedProfile);
+      }
+    } catch (err: any) {
+      console.error('Update Profile Error:', err);
+      setAuthError(err.message || 'Failed to update profile');
+      throw err;
+    }
+  };
+
+  const changePassword = async (newPassword: string) => {
+    setAuthError(null);
+    try {
+      if (!auth.currentUser) {
+        throw new Error('No authenticated user found.');
+      }
+      await updatePassword(auth.currentUser, newPassword);
+    } catch (err: any) {
+      console.error('Change Password Error:', err);
+      if (err.code === 'auth/requires-recent-login') {
+        const msg = 'For security reasons, changing your password requires recent authentication. Please log out and log in again.';
+        setAuthError(msg);
+        throw new Error(msg);
+      } else if (err.code === 'auth/weak-password') {
+        const msg = 'Password should be at least 6 characters.';
+        setAuthError(msg);
+        throw new Error(msg);
+      } else {
+        const msg = err.message || 'Failed to update password.';
+        setAuthError(msg);
+        throw new Error(msg);
+      }
+    }
+  };
+
+  const sendPasswordReset = async (email: string) => {
+    setAuthError(null);
+    try {
+      await sendPasswordResetEmail(auth, email.trim());
+    } catch (err: any) {
+      console.error('Password Reset Error:', err);
+      if (err.code === 'auth/user-not-found') {
+        const msg = 'No account was found with this email address.';
+        setAuthError(msg);
+        throw new Error(msg);
+      } else if (err.code === 'auth/invalid-email') {
+        const msg = 'Please enter a valid email address.';
+        setAuthError(msg);
+        throw new Error(msg);
+      } else {
+        const msg = err.message || 'Failed to send password reset email.';
+        setAuthError(msg);
+        throw new Error(msg);
+      }
+    }
+  };
+
   const clearAuthError = () => setAuthError(null);
 
   return (
@@ -188,6 +273,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         signUpWithEmail,
         signInAsGuest,
         logout,
+        updateUserProfile,
+        changePassword,
+        sendPasswordReset,
         authError,
         clearAuthError,
       }}

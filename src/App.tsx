@@ -324,7 +324,7 @@ function TaskManagerContent() {
       />
 
       {/* Main Layout Container (Sidebar + Content Workspace) */}
-      <div className="flex-1 flex max-w-7xl w-full mx-auto">
+      <div className="flex-1 flex max-w-7xl w-full mx-auto items-start relative">
         {/* Workspace Sidebar Drawer (Strictly Sticky and Fixed) */}
         <Sidebar
           isOpen={isSidebarOpen}

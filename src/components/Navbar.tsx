@@ -1,5 +1,5 @@
 import React from 'react';
-import { Plus, ChevronDown } from 'lucide-react';
+import { Plus, ChevronDown, Menu } from 'lucide-react';
 import { UserProfile } from '../types';
 import { BrandLogo } from './BrandLogo';
 import { useTheme } from '../context/ThemeContext';
@@ -17,6 +17,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   currentUser,
   onOpenUserModal,
   onOpenNewTaskModal,
+  onToggleSidebar,
 }) => {
   const { isDark } = useTheme();
 
@@ -29,8 +30,22 @@ export const Navbar: React.FC<NavbarProps> = ({
       }`}
     >
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-4">
-        {/* Left Side: Brand Logo */}
+        {/* Left Side: Mobile Menu Button & Brand Logo */}
         <div className="flex items-center gap-3">
+          {onToggleSidebar && (
+            <button
+              id="mobile-sidebar-toggle-btn"
+              onClick={onToggleSidebar}
+              className={`p-2 rounded-xl border lg:hidden transition-colors cursor-pointer ${
+                isDark
+                  ? 'border-slate-800 text-slate-300 hover:bg-slate-800'
+                  : 'border-slate-200 text-slate-700 hover:bg-slate-100'
+              }`}
+              aria-label="Toggle navigation drawer"
+            >
+              <Menu className="w-5 h-5" />
+            </button>
+          )}
           <BrandLogo size="md" badgeText="WORKSPACE" />
         </div>
 

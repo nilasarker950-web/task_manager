@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   X,
   LogOut,
@@ -11,17 +11,40 @@ import {
   ShieldCheck,
   Activity,
   ArrowRight,
+  Camera,
+  Upload,
+  Lock,
+  Eye,
+  EyeOff,
+  Sparkles,
+  Loader2,
+  RefreshCw,
+  KeyRound,
+  Image as ImageIcon,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { BrandLogo } from './BrandLogo';
 import { useTheme, THEMES } from '../context/ThemeContext';
 import { BackgroundVariant } from '../types';
+import { AnimatePresence, motion } from 'motion/react';
 
 interface UserModalProps {
   isOpen: boolean;
   onClose: () => void;
   taskCount?: { total: number; completed: number; pending: number };
 }
+
+type ModalTab = 'profile' | 'password' | 'stats' | 'appearance';
+
+// Predefined stylish avatar presets
+const PRESET_AVATARS = [
+  { id: 'av1', url: 'https://api.dicebear.com/7.x/bottts/svg?seed=Felix&backgroundColor=b6e3f4', label: 'Robo Alpha' },
+  { id: 'av2', url: 'https://api.dicebear.com/7.x/bottts/svg?seed=Aneka&backgroundColor=c0aede', label: 'Robo Violet' },
+  { id: 'av3', url: 'https://api.dicebear.com/7.x/bottts/svg?seed=Trouble&backgroundColor=d1d4f9', label: 'Robo Slate' },
+  { id: 'av4', url: 'https://api.dicebear.com/7.x/bottts/svg?seed=Precious&backgroundColor=ffd5dc', label: 'Robo Coral' },
+  { id: 'av5', url: 'https://api.dicebear.com/7.x/bottts/svg?seed=Shadow&backgroundColor=ffdfbf', label: 'Robo Amber' },
+  { id: 'av6', url: 'https://api.dicebear.com/7.x/bottts/svg?seed=Gizmo&backgroundColor=c1f4c5', label: 'Robo Mint' },
+];
 
 export const UserModal: React.FC<UserModalProps> = ({
   isOpen,
@@ -31,47 +54,119 @@ export const UserModal: React.FC<UserModalProps> = ({
   const { isDark, theme, setTheme } = useTheme();
   const {
     currentUser,
+    firebaseUser,
     signInWithGoogle,
-    signInAsGuest,
+    updateUserProfile,
+    changePassword,
     logout,
     authError,
     clearAuthError,
   } = useAuth();
 
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const [activeTab, setActiveTab] = useState<ModalTab>('profile');
   const [loadingAction, setLoadingAction] = useState(false);
+  const [saveSuccess, setSaveSuccess] = useState<string | null>(null);
   const [copiedUid, setCopiedUid] = useState(false);
-  const [activeTab, setActiveTab] = useState<'profile' | 'appearance'>('profile');
+
+  // Profile Edit State
+  const [editName, setEditName] = useState('');
+  const [editAvatarUrl, setEditAvatarUrl] = useState('');
+  const [customUrlInput, setCustomUrlInput] = useState('');
+  const [showUrlInput, setShowUrlInput] = useState(false);
+
+  // Password Change State
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [passwordError, setPasswordError] = useState<string | null>(null);
+  const [passwordSuccess, setPasswordSuccess] = useState(false);
+
+  useEffect(() => {
+    if (currentUser) {
+      setEditName(currentUser.name || '');
+      setEditAvatarUrl(currentUser.avatarUrl || '');
+    }
+    setSaveSuccess(null);
+    setPasswordSuccess(false);
+    setPasswordError(null);
+    clearAuthError();
+  }, [currentUser, isOpen]);
 
   if (!isOpen) return null;
 
-  const handleGoogleSignIn = async () => {
+  // Is authenticated via Google SSO
+  const isGoogleUser = firebaseUser?.providerData.some((p) => p.providerId === 'google.com');
+
+  // Handle Profile Update
+  const handleSaveProfile = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editName.trim()) return;
+
     setLoadingAction(true);
+    setSaveSuccess(null);
+    clearAuthError();
+
     try {
-      await signInWithGoogle();
-      onClose();
+      await updateUserProfile({
+        name: editName.trim(),
+        avatarUrl: editAvatarUrl || undefined,
+      });
+      setSaveSuccess('Profile information updated successfully!');
+      setTimeout(() => setSaveSuccess(null), 3500);
     } catch {
-      // Handled in context
+      // Error handled in authError
     } finally {
       setLoadingAction(false);
     }
   };
 
-  const handleGuestSignIn = async () => {
-    setLoadingAction(true);
-    try {
-      await signInAsGuest();
-      onClose();
-    } catch {
-      // Handled in context
-    } finally {
-      setLoadingAction(false);
+  // Handle Image File Upload
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Check size limit (under 2MB for fast local rendering)
+    if (file.size > 2 * 1024 * 1024) {
+      alert('Please choose an image under 2MB.');
+      return;
     }
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      if (typeof event.target?.result === 'string') {
+        setEditAvatarUrl(event.target.result);
+      }
+    };
+    reader.readAsDataURL(file);
   };
 
-  const handleLogout = async () => {
+  // Handle Password Change
+  const handleChangePassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setPasswordError(null);
+    setPasswordSuccess(false);
+    clearAuthError();
+
+    if (newPassword.length < 6) {
+      setPasswordError('Password must be at least 6 characters long.');
+      return;
+    }
+
+    if (newPassword !== confirmPassword) {
+      setPasswordError('Passwords do not match. Please verify.');
+      return;
+    }
+
     setLoadingAction(true);
     try {
-      await logout();
+      await changePassword(newPassword);
+      setPasswordSuccess(true);
+      setNewPassword('');
+      setConfirmPassword('');
+    } catch (err: any) {
+      setPasswordError(err.message || 'Failed to update password.');
     } finally {
       setLoadingAction(false);
     }
@@ -83,15 +178,25 @@ export const UserModal: React.FC<UserModalProps> = ({
     setTimeout(() => setCopiedUid(false), 2000);
   };
 
+  const handleLogout = async () => {
+    setLoadingAction(true);
+    try {
+      await logout();
+      onClose();
+    } finally {
+      setLoadingAction(false);
+    }
+  };
+
   const completionRate =
     taskCount.total > 0
       ? Math.round((taskCount.completed / taskCount.total) * 100)
       : 0;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in duration-150">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-950/70 backdrop-blur-xs animate-in fade-in duration-150">
       <div
-        className={`w-full max-w-lg rounded-2xl shadow-2xl border overflow-hidden flex flex-col animate-in zoom-in-95 duration-150 ${
+        className={`w-full max-w-xl rounded-3xl shadow-2xl border overflow-hidden flex flex-col animate-in zoom-in-95 duration-150 ${
           isDark
             ? 'bg-slate-900 border-slate-800 text-slate-100'
             : 'bg-white border-slate-200 text-slate-900'
@@ -99,17 +204,17 @@ export const UserModal: React.FC<UserModalProps> = ({
         role="dialog"
         aria-modal="true"
       >
-        {/* Dedicated Profile Header */}
+        {/* Header */}
         <div
           className={`px-6 py-4 border-b flex items-center justify-between ${
-            isDark ? 'border-slate-800 bg-slate-800/40' : 'border-slate-100 bg-slate-50/70'
+            isDark ? 'border-slate-800 bg-slate-850/80' : 'border-slate-100 bg-slate-50/80'
           }`}
         >
           <div className="flex items-center gap-3">
             <BrandLogo size="sm" showLabel={false} />
             <div>
-              <h2 className="text-sm font-bold leading-tight">Dedicated Profile & Workspace</h2>
-              <p className="text-[11px] text-slate-400">Account identity, productivity stats & preferences</p>
+              <h2 className="text-sm font-bold leading-tight">Account & Profile Settings</h2>
+              <p className="text-[11px] text-slate-400">Manage identity, security credentials & visual theme</p>
             </div>
           </div>
           <button
@@ -118,7 +223,7 @@ export const UserModal: React.FC<UserModalProps> = ({
               clearAuthError();
               onClose();
             }}
-            className={`p-1.5 rounded-lg transition-colors cursor-pointer ${
+            className={`p-1.5 rounded-xl transition-colors cursor-pointer ${
               isDark
                 ? 'text-slate-400 hover:text-slate-200 hover:bg-slate-800'
                 : 'text-slate-400 hover:text-slate-600 hover:bg-slate-100'
@@ -128,284 +233,496 @@ export const UserModal: React.FC<UserModalProps> = ({
           </button>
         </div>
 
-        {/* Navigation Sub-Tabs */}
+        {/* Navigation Tabs */}
         <div
-          className={`flex border-b px-6 pt-2 text-xs font-semibold ${
-            isDark ? 'border-slate-800 bg-slate-900/50' : 'border-slate-100 bg-slate-50/40'
+          className={`flex border-b px-4 sm:px-6 pt-2 text-xs font-semibold gap-1 sm:gap-2 overflow-x-auto ${
+            isDark ? 'border-slate-800 bg-slate-900/60' : 'border-slate-100 bg-slate-50/50'
           }`}
         >
           <button
-            onClick={() => setActiveTab('profile')}
-            className={`pb-2.5 px-3 flex items-center gap-2 border-b-2 transition-colors cursor-pointer ${
+            id="tab-profile-edit"
+            onClick={() => {
+              setActiveTab('profile');
+              setSaveSuccess(null);
+            }}
+            className={`pb-2.5 px-3 flex items-center gap-1.5 border-b-2 transition-colors cursor-pointer whitespace-nowrap ${
               activeTab === 'profile'
                 ? 'border-indigo-600 text-indigo-600 dark:text-indigo-400'
                 : 'border-transparent text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'
             }`}
           >
             <User className="w-3.5 h-3.5" />
-            <span>Profile & Account</span>
+            <span>Edit Profile & Avatar</span>
           </button>
 
           <button
+            id="tab-password-change"
+            onClick={() => {
+              setActiveTab('password');
+              setPasswordError(null);
+              setPasswordSuccess(false);
+            }}
+            className={`pb-2.5 px-3 flex items-center gap-1.5 border-b-2 transition-colors cursor-pointer whitespace-nowrap ${
+              activeTab === 'password'
+                ? 'border-indigo-600 text-indigo-600 dark:text-indigo-400'
+                : 'border-transparent text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'
+            }`}
+          >
+            <KeyRound className="w-3.5 h-3.5" />
+            <span>Security & Password</span>
+          </button>
+
+          <button
+            id="tab-productivity-stats"
+            onClick={() => setActiveTab('stats')}
+            className={`pb-2.5 px-3 flex items-center gap-1.5 border-b-2 transition-colors cursor-pointer whitespace-nowrap ${
+              activeTab === 'stats'
+                ? 'border-indigo-600 text-indigo-600 dark:text-indigo-400'
+                : 'border-transparent text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'
+            }`}
+          >
+            <Activity className="w-3.5 h-3.5" />
+            <span>Productivity</span>
+          </button>
+
+          <button
+            id="tab-theme-appearance"
             onClick={() => setActiveTab('appearance')}
-            className={`pb-2.5 px-3 flex items-center gap-2 border-b-2 transition-colors cursor-pointer ${
+            className={`pb-2.5 px-3 flex items-center gap-1.5 border-b-2 transition-colors cursor-pointer whitespace-nowrap ${
               activeTab === 'appearance'
                 ? 'border-indigo-600 text-indigo-600 dark:text-indigo-400'
                 : 'border-transparent text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'
             }`}
           >
             <Palette className="w-3.5 h-3.5" />
-            <span>Theme & Appearance</span>
+            <span>Themes</span>
           </button>
         </div>
 
         {/* Content Body */}
-        <div className="p-6 space-y-5 overflow-y-auto max-h-[75vh]">
+        <div className="p-5 sm:p-6 space-y-5 overflow-y-auto max-h-[75vh]">
           {authError && (
-            <div className="p-3 rounded-xl bg-rose-50 dark:bg-rose-950/80 border border-rose-200 dark:border-rose-800 flex items-center gap-2 text-xs text-rose-700 dark:text-rose-300">
+            <div className="p-3.5 rounded-xl bg-rose-500/10 border border-rose-500/30 flex items-center gap-2 text-xs text-rose-600 dark:text-rose-400">
               <AlertCircle className="w-4 h-4 shrink-0" />
               <span>{authError}</span>
             </div>
           )}
 
+          {/* TAB 1: Edit Profile & Avatar */}
           {activeTab === 'profile' && (
-            <>
-              {currentUser ? (
-                <div className="space-y-4">
-                  {/* Identity Card */}
-                  <div
-                    className={`p-4 sm:p-5 rounded-2xl border ${
-                      isDark
-                        ? 'bg-slate-800/50 border-slate-700/80'
-                        : 'bg-slate-50/80 border-slate-200/90'
-                    }`}
-                  >
-                    <div className="flex items-start gap-4">
-                      {currentUser.avatarUrl ? (
-                        <img
-                          src={currentUser.avatarUrl}
-                          alt={currentUser.name}
-                          referrerPolicy="no-referrer"
-                          className="w-14 h-14 rounded-2xl ring-2 ring-indigo-500/30 shadow-xs object-cover"
-                        />
-                      ) : (
-                        <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-indigo-600 to-indigo-700 text-white font-bold flex items-center justify-center text-xl shadow-xs">
-                          {currentUser.name ? currentUser.name.charAt(0).toUpperCase() : 'U'}
-                        </div>
-                      )}
+            <form onSubmit={handleSaveProfile} className="space-y-5">
+              {saveSuccess && (
+                <div className="p-3.5 rounded-xl bg-emerald-500/10 border border-emerald-500/30 flex items-center gap-2 text-xs text-emerald-600 dark:text-emerald-400">
+                  <CheckCircle2 className="w-4 h-4 shrink-0" />
+                  <span>{saveSuccess}</span>
+                </div>
+              )}
 
-                      <div className="min-w-0 flex-1">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <h3 className="text-base font-bold truncate">
-                            {currentUser.name}
-                          </h3>
-                          <span
-                            className={`text-[10px] uppercase font-bold px-2.5 py-0.5 rounded-full font-mono flex items-center gap-1 ${
-                              currentUser.isAnonymous
-                                ? isDark
-                                  ? 'bg-slate-700 text-slate-300'
-                                  : 'bg-slate-200 text-slate-700'
-                                : isDark
-                                ? 'bg-emerald-950/80 text-emerald-300 border border-emerald-800'
-                                : 'bg-emerald-50 text-emerald-800 border border-emerald-200/70'
-                            }`}
-                          >
-                            <ShieldCheck className="w-3 h-3 text-emerald-500" />
-                            <span>{currentUser.isAnonymous ? 'Guest Mode' : 'Verified Google'}</span>
-                          </span>
-                        </div>
+              {/* Avatar Section */}
+              <div
+                className={`p-4 sm:p-5 rounded-2xl border ${
+                  isDark ? 'bg-slate-800/40 border-slate-700/80' : 'bg-slate-50/80 border-slate-200/90'
+                }`}
+              >
+                <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-3">
+                  Profile Picture & Avatar
+                </label>
 
-                        <p className="text-xs text-slate-400 truncate mt-1">
-                          {currentUser.email || 'guest-session@taskpulse.app'}
-                        </p>
-
-                        {/* UID & Quick Copy */}
-                        <div className="flex items-center gap-2 mt-2">
-                          <span className="text-[10px] font-mono text-slate-400 bg-slate-200/60 dark:bg-slate-900/60 px-2 py-0.5 rounded border border-slate-300/40 dark:border-slate-700/50">
-                            UID: {currentUser.id.slice(0, 10)}...
-                          </span>
-                          <button
-                            onClick={() => handleCopyUid(currentUser.id)}
-                            className="text-[10px] text-indigo-500 hover:text-indigo-600 flex items-center gap-1 cursor-pointer font-medium"
-                            title="Copy Unique Identifier"
-                          >
-                            {copiedUid ? (
-                              <>
-                                <Check className="w-3 h-3 text-emerald-500" />
-                                <span className="text-emerald-500">Copied</span>
-                              </>
-                            ) : (
-                              <>
-                                <Copy className="w-3 h-3" />
-                                <span>Copy ID</span>
-                              </>
-                            )}
-                          </button>
-                        </div>
+                <div className="flex flex-col sm:flex-row items-center sm:items-start gap-4">
+                  {/* Current Avatar Preview */}
+                  <div className="relative group shrink-0">
+                    {editAvatarUrl ? (
+                      <img
+                        src={editAvatarUrl}
+                        alt="Avatar Preview"
+                        referrerPolicy="no-referrer"
+                        className="w-20 h-20 rounded-2xl object-cover ring-2 ring-indigo-500/40 shadow-md"
+                      />
+                    ) : (
+                      <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-indigo-600 to-violet-600 text-white font-bold flex items-center justify-center text-2xl shadow-md">
+                        {editName ? editName.charAt(0).toUpperCase() : 'U'}
                       </div>
-                    </div>
+                    )}
 
-                    {/* Upgrade to Google Account Banner for Guests */}
-                    {currentUser.isAnonymous && (
-                      <div
-                        className={`mt-4 p-3 rounded-xl border flex items-center justify-between gap-3 ${
+                    <button
+                      type="button"
+                      onClick={() => fileInputRef.current?.click()}
+                      className="absolute inset-0 bg-slate-950/60 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center text-white text-[10px] font-bold cursor-pointer"
+                    >
+                      <Camera className="w-5 h-5 mb-0.5" />
+                      <span>Change</span>
+                    </button>
+                  </div>
+
+                  {/* Hidden File Input */}
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/*"
+                    onChange={handleFileUpload}
+                    className="hidden"
+                  />
+
+                  {/* Avatar Options */}
+                  <div className="flex-1 space-y-3 w-full">
+                    {/* Action Buttons: Upload & Custom URL */}
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <button
+                        type="button"
+                        onClick={() => fileInputRef.current?.click()}
+                        className={`px-3 py-1.5 rounded-xl border text-xs font-semibold flex items-center gap-1.5 cursor-pointer transition-all hover:scale-105 active:scale-95 ${
                           isDark
-                            ? 'bg-indigo-950/40 border-indigo-800/80 text-indigo-200'
-                            : 'bg-indigo-50 border-indigo-200 text-indigo-900'
+                            ? 'bg-slate-800 border-slate-700 hover:bg-slate-750 text-slate-200'
+                            : 'bg-white border-slate-200 hover:bg-slate-50 text-slate-700 shadow-2xs'
                         }`}
                       >
-                        <div className="text-xs">
-                          <p className="font-semibold">Upgrade to Google Account</p>
-                          <p className="text-[11px] opacity-80">
-                            Sync your tasks across all devices seamlessly.
-                          </p>
-                        </div>
+                        <Upload className="w-3.5 h-3.5 text-indigo-500" />
+                        <span>Upload Photo</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => setShowUrlInput(!showUrlInput)}
+                        className={`px-3 py-1.5 rounded-xl border text-xs font-semibold flex items-center gap-1.5 cursor-pointer transition-all hover:scale-105 active:scale-95 ${
+                          isDark
+                            ? 'bg-slate-800 border-slate-700 hover:bg-slate-750 text-slate-200'
+                            : 'bg-white border-slate-200 hover:bg-slate-50 text-slate-700 shadow-2xs'
+                        }`}
+                      >
+                        <ImageIcon className="w-3.5 h-3.5 text-emerald-500" />
+                        <span>Use Image URL</span>
+                      </button>
+
+                      {editAvatarUrl && (
                         <button
-                          onClick={handleGoogleSignIn}
-                          disabled={loadingAction}
-                          className="px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-xs flex items-center gap-1.5 shrink-0 cursor-pointer shadow-xs transition-transform active:scale-95"
+                          type="button"
+                          onClick={() => setEditAvatarUrl('')}
+                          className="px-2.5 py-1.5 rounded-xl text-xs text-rose-500 hover:bg-rose-500/10 font-semibold cursor-pointer"
                         >
-                          <span>Connect</span>
-                          <ArrowRight className="w-3 h-3" />
+                          Remove
+                        </button>
+                      )}
+                    </div>
+
+                    {/* Custom URL Input Accordion */}
+                    {showUrlInput && (
+                      <div className="flex items-center gap-2 pt-1">
+                        <input
+                          type="url"
+                          placeholder="Paste image link (https://...)"
+                          value={customUrlInput}
+                          onChange={(e) => setCustomUrlInput(e.target.value)}
+                          className={`flex-1 px-3 py-1.5 text-xs rounded-xl border outline-none ${
+                            isDark
+                              ? 'bg-slate-900 border-slate-700 text-white'
+                              : 'bg-white border-slate-200 text-slate-900'
+                          }`}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (customUrlInput.trim()) {
+                              setEditAvatarUrl(customUrlInput.trim());
+                              setCustomUrlInput('');
+                              setShowUrlInput(false);
+                            }
+                          }}
+                          className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-xl cursor-pointer"
+                        >
+                          Apply
                         </button>
                       </div>
                     )}
-                  </div>
 
-                  {/* Dedicated Workspace Productivity Card */}
-                  <div
-                    className={`p-4 rounded-2xl border space-y-3 ${
-                      isDark
-                        ? 'bg-slate-800/40 border-slate-700/70'
-                        : 'bg-white border-slate-200/80'
-                    }`}
-                  >
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-1.5 text-xs font-bold">
-                        <Activity className="w-4 h-4 text-indigo-500" />
-                        <span>Workspace Activity & Velocity</span>
-                      </div>
-                      <span className="text-xs font-mono font-bold text-indigo-600 dark:text-indigo-400">
-                        {completionRate}% Complete
+                    {/* Preset Avatars Palette */}
+                    <div>
+                      <span className="text-[10px] font-semibold text-slate-400 block mb-1.5">
+                        Or pick a fun preset avatar:
                       </span>
+                      <div className="flex items-center gap-2 overflow-x-auto pb-1">
+                        {PRESET_AVATARS.map((av) => (
+                          <button
+                            key={av.id}
+                            type="button"
+                            onClick={() => setEditAvatarUrl(av.url)}
+                            title={av.label}
+                            className={`w-9 h-9 rounded-xl overflow-hidden border-2 transition-all cursor-pointer shrink-0 ${
+                              editAvatarUrl === av.url
+                                ? 'border-indigo-600 scale-110 ring-2 ring-indigo-500/30'
+                                : 'border-transparent opacity-70 hover:opacity-100 hover:scale-105'
+                            }`}
+                          >
+                            <img src={av.url} alt={av.label} className="w-full h-full object-cover" />
+                          </button>
+                        ))}
+                      </div>
                     </div>
+                  </div>
+                </div>
+              </div>
 
-                    {/* Progress Bar */}
-                    <div
-                      className={`w-full h-2 rounded-full overflow-hidden ${
-                        isDark ? 'bg-slate-700' : 'bg-slate-100'
+              {/* Name & Email Fields */}
+              <div className="space-y-3.5">
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1">
+                    Display Name
+                  </label>
+                  <div className="relative">
+                    <User className="w-4 h-4 text-slate-400 absolute left-3.5 top-3 pointer-events-none" />
+                    <input
+                      type="text"
+                      required
+                      value={editName}
+                      onChange={(e) => setEditName(e.target.value)}
+                      placeholder="Your full name"
+                      className={`w-full pl-10 pr-3.5 py-2.5 rounded-xl border text-xs outline-none transition-all ${
+                        isDark
+                          ? 'bg-slate-950/70 border-slate-800 focus:border-indigo-500 text-white'
+                          : 'bg-white border-slate-200 focus:border-indigo-500 text-slate-900'
                       }`}
-                    >
-                      <div
-                        className="h-full bg-gradient-to-r from-indigo-500 to-emerald-500 transition-all duration-300 rounded-full"
-                        style={{ width: `${completionRate}%` }}
-                      />
-                    </div>
-
-                    {/* Statistics Tiles */}
-                    <div className="grid grid-cols-3 gap-2 pt-1">
-                      <div
-                        className={`p-2.5 rounded-xl border text-center ${
-                          isDark ? 'bg-slate-900/60 border-slate-700/60' : 'bg-slate-50 border-slate-200/60'
-                        }`}
-                      >
-                        <span className="text-[10px] text-slate-400 font-medium block">Total Tasks</span>
-                        <span className="text-base font-bold">{taskCount.total}</span>
-                      </div>
-                      <div
-                        className={`p-2.5 rounded-xl border text-center ${
-                          isDark ? 'bg-slate-900/60 border-slate-700/60' : 'bg-slate-50 border-slate-200/60'
-                        }`}
-                      >
-                        <span className="text-[10px] text-amber-500 font-medium block">Pending</span>
-                        <span className="text-base font-bold text-amber-500">{taskCount.pending}</span>
-                      </div>
-                      <div
-                        className={`p-2.5 rounded-xl border text-center ${
-                          isDark ? 'bg-slate-900/60 border-slate-700/60' : 'bg-slate-50 border-slate-200/60'
-                        }`}
-                      >
-                        <span className="text-[10px] text-emerald-500 font-medium block">Completed</span>
-                        <span className="text-base font-bold text-emerald-500">{taskCount.completed}</span>
-                      </div>
-                    </div>
+                    />
                   </div>
+                </div>
 
-                  {/* Sign Out Action */}
-                  <div
-                    className={`pt-3 border-t flex items-center justify-between ${
-                      isDark ? 'border-slate-800' : 'border-slate-200/80'
-                    }`}
-                  >
-                    <span className="text-xs text-slate-400">
-                      Session Active
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1">
+                    Email Address
+                  </label>
+                  <div className="flex items-center justify-between px-3.5 py-2.5 rounded-xl border text-xs bg-slate-100/60 dark:bg-slate-950/40 border-slate-200 dark:border-slate-800 text-slate-500 dark:text-slate-400">
+                    <span className="truncate">{currentUser?.email || 'guest-session@taskpulse.local'}</span>
+                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 shrink-0 ml-2">
+                      {currentUser?.isAnonymous ? 'Guest ID' : 'Verified'}
                     </span>
-                    <button
-                      id="logout-btn"
-                      onClick={handleLogout}
-                      disabled={loadingAction}
-                      className="px-3.5 py-1.5 text-xs font-semibold text-rose-500 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 rounded-xl transition-all duration-150 hover:scale-105 active:scale-95 flex items-center gap-1.5 cursor-pointer disabled:opacity-50 border border-transparent hover:border-rose-200 dark:hover:border-rose-900"
-                    >
-                      <LogOut className="w-3.5 h-3.5" />
-                      <span>Sign Out</span>
-                    </button>
                   </div>
                 </div>
-              ) : (
-                /* Unauthenticated View */
-                <div className="text-center py-6 space-y-4">
-                  <div className="w-14 h-14 rounded-2xl bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 flex items-center justify-center mx-auto border border-indigo-100 dark:border-indigo-800 shadow-2xs">
-                    <User className="w-7 h-7" />
-                  </div>
-                  <div>
-                    <h3 className="text-base font-bold">Sign in to TaskPulse</h3>
-                    <p className="text-xs text-slate-400 max-w-xs mx-auto mt-1 leading-relaxed">
-                      Connect your account to sync tasks seamlessly across devices with real-time cloud persistence.
-                    </p>
-                  </div>
+              </div>
 
-                  <div className="space-y-3 pt-2 max-w-xs mx-auto">
-                    <button
-                      id="google-sign-in-btn"
-                      onClick={handleGoogleSignIn}
-                      disabled={loadingAction}
-                      className="w-full flex items-center justify-center gap-2.5 py-3 px-4 rounded-xl bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 text-white text-xs font-semibold shadow-xs hover:shadow-md hover:-translate-y-0.5 transition-all duration-150 cursor-pointer disabled:opacity-50"
-                    >
-                      <svg className="w-4 h-4" viewBox="0 0 24 24">
-                        <path
-                          fill="#ffffff"
-                          d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
-                        />
-                        <path
-                          fill="#ffffff"
-                          d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
-                        />
-                        <path
-                          fill="#ffffff"
-                          d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"
-                        />
-                        <path
-                          fill="#ffffff"
-                          d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"
-                        />
-                      </svg>
-                      <span>Sign in with Google</span>
-                    </button>
-
-                    <p className="text-[11px] text-slate-400">
-                      Sign in directly with your Google account to sync all tasks in real-time.
-                    </p>
-                  </div>
-                </div>
-              )}
-            </>
+              {/* Save Button */}
+              <div className="pt-2 flex items-center justify-end gap-2.5">
+                <button
+                  type="submit"
+                  disabled={loadingAction}
+                  className="px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 text-white text-xs font-bold shadow-md hover:shadow-lg hover:-translate-y-0.5 active:scale-95 transition-all duration-150 flex items-center gap-2 cursor-pointer disabled:opacity-50"
+                >
+                  {loadingAction ? (
+                    <>
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      <span>Saving Changes...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Check className="w-4 h-4" />
+                      <span>Save Profile Changes</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </form>
           )}
 
-          {activeTab === 'appearance' && (
+          {/* TAB 2: Security & Password */}
+          {activeTab === 'password' && (
             <div className="space-y-4">
-              <div className="text-xs text-slate-400">
-                Choose a workspace visual theme and background atmosphere:
+              {isGoogleUser ? (
+                <div
+                  className={`p-5 rounded-2xl border text-center space-y-3 ${
+                    isDark ? 'bg-slate-800/40 border-slate-700' : 'bg-slate-50 border-slate-200'
+                  }`}
+                >
+                  <div className="w-12 h-12 rounded-2xl bg-indigo-500/10 text-indigo-500 flex items-center justify-center mx-auto">
+                    <ShieldCheck className="w-6 h-6" />
+                  </div>
+                  <h3 className="text-sm font-bold">Google Single Sign-On Managed</h3>
+                  <p className="text-xs text-slate-400 max-w-sm mx-auto leading-relaxed">
+                    Your account is securely authenticated through Google SSO. Password changes and multi-factor authentication are managed directly within your Google Account settings.
+                  </p>
+                </div>
+              ) : currentUser?.isAnonymous ? (
+                <div
+                  className={`p-5 rounded-2xl border text-center space-y-3 ${
+                    isDark ? 'bg-slate-800/40 border-slate-700' : 'bg-slate-50 border-slate-200'
+                  }`}
+                >
+                  <div className="w-12 h-12 rounded-2xl bg-amber-500/10 text-amber-500 flex items-center justify-center mx-auto">
+                    <KeyRound className="w-6 h-6" />
+                  </div>
+                  <h3 className="text-sm font-bold">Guest Session</h3>
+                  <p className="text-xs text-slate-400 max-w-sm mx-auto leading-relaxed">
+                    You are currently using an instant guest session. Upgrade to a registered Google or Email account to set passwords and sync tasks across devices.
+                  </p>
+                  <button
+                    onClick={signInWithGoogle}
+                    className="inline-flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold shadow-xs cursor-pointer"
+                  >
+                    <span>Connect Google Account</span>
+                  </button>
+                </div>
+              ) : (
+                /* Email-Password User Password Update Form */
+                <form onSubmit={handleChangePassword} className="space-y-4">
+                  <div>
+                    <h3 className="text-sm font-bold">Change Your Password</h3>
+                    <p className="text-xs text-slate-400 mt-0.5">
+                      Ensure your new password contains at least 6 characters for maximum security.
+                    </p>
+                  </div>
+
+                  {passwordSuccess && (
+                    <div className="p-3.5 rounded-xl bg-emerald-500/10 border border-emerald-500/30 flex items-center gap-2 text-xs text-emerald-600 dark:text-emerald-400">
+                      <CheckCircle2 className="w-4 h-4 shrink-0" />
+                      <span>Your password has been changed successfully!</span>
+                    </div>
+                  )}
+
+                  {passwordError && (
+                    <div className="p-3.5 rounded-xl bg-rose-500/10 border border-rose-500/30 flex items-center gap-2 text-xs text-rose-600 dark:text-rose-400">
+                      <AlertCircle className="w-4 h-4 shrink-0" />
+                      <span>{passwordError}</span>
+                    </div>
+                  )}
+
+                  <div className="space-y-3">
+                    <div>
+                      <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1">
+                        New Password
+                      </label>
+                      <div className="relative">
+                        <Lock className="w-4 h-4 text-slate-400 absolute left-3.5 top-3 pointer-events-none" />
+                        <input
+                          type={showNewPassword ? 'text' : 'password'}
+                          required
+                          minLength={6}
+                          value={newPassword}
+                          onChange={(e) => setNewPassword(e.target.value)}
+                          placeholder="••••••••"
+                          className={`w-full pl-10 pr-10 py-2.5 rounded-xl border text-xs outline-none transition-all ${
+                            isDark
+                              ? 'bg-slate-950/70 border-slate-800 focus:border-indigo-500 text-white'
+                              : 'bg-white border-slate-200 focus:border-indigo-500 text-slate-900'
+                          }`}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowNewPassword(!showNewPassword)}
+                          className="absolute right-3 top-3 text-slate-400 hover:text-slate-200 transition-colors cursor-pointer"
+                        >
+                          {showNewPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                        </button>
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1">
+                        Confirm New Password
+                      </label>
+                      <div className="relative">
+                        <ShieldCheck className="w-4 h-4 text-slate-400 absolute left-3.5 top-3 pointer-events-none" />
+                        <input
+                          type={showNewPassword ? 'text' : 'password'}
+                          required
+                          value={confirmPassword}
+                          onChange={(e) => setConfirmPassword(e.target.value)}
+                          placeholder="Repeat new password"
+                          className={`w-full pl-10 pr-3.5 py-2.5 rounded-xl border text-xs outline-none transition-all ${
+                            isDark
+                              ? 'bg-slate-950/70 border-slate-800 focus:border-indigo-500 text-white'
+                              : 'bg-white border-slate-200 focus:border-indigo-500 text-slate-900'
+                          }`}
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="pt-2 flex justify-end">
+                    <button
+                      type="submit"
+                      disabled={loadingAction}
+                      className="px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 text-white text-xs font-bold shadow-md hover:shadow-lg hover:-translate-y-0.5 active:scale-95 transition-all duration-150 flex items-center gap-2 cursor-pointer disabled:opacity-50"
+                    >
+                      {loadingAction ? (
+                        <>
+                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                          <span>Updating Password...</span>
+                        </>
+                      ) : (
+                        <>
+                          <Lock className="w-3.5 h-3.5" />
+                          <span>Update Password</span>
+                        </>
+                      )}
+                    </button>
+                  </div>
+                </form>
+              )}
+            </div>
+          )}
+
+          {/* TAB 3: Productivity & Workspace Activity */}
+          {activeTab === 'stats' && (
+            <div className="space-y-4">
+              <div
+                className={`p-4.5 rounded-2xl border space-y-3 ${
+                  isDark ? 'bg-slate-800/40 border-slate-700/70' : 'bg-slate-50 border-slate-200/80'
+                }`}
+              >
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-1.5 text-xs font-bold">
+                    <Activity className="w-4 h-4 text-indigo-500" />
+                    <span>Workspace Sprint Velocity</span>
+                  </div>
+                  <span className="text-xs font-mono font-bold text-indigo-600 dark:text-indigo-400">
+                    {completionRate}% Complete
+                  </span>
+                </div>
+
+                <div className={`w-full h-2 rounded-full overflow-hidden ${isDark ? 'bg-slate-700' : 'bg-slate-200'}`}>
+                  <div
+                    className="h-full bg-gradient-to-r from-indigo-500 to-emerald-500 transition-all duration-300 rounded-full"
+                    style={{ width: `${completionRate}%` }}
+                  />
+                </div>
+
+                <div className="grid grid-cols-3 gap-2.5 pt-1">
+                  <div className={`p-3 rounded-xl border text-center ${isDark ? 'bg-slate-900/60 border-slate-700/60' : 'bg-white border-slate-200'}`}>
+                    <span className="text-[10px] text-slate-400 font-medium block">Total Tasks</span>
+                    <span className="text-base font-bold">{taskCount.total}</span>
+                  </div>
+                  <div className={`p-3 rounded-xl border text-center ${isDark ? 'bg-slate-900/60 border-slate-700/60' : 'bg-white border-slate-200'}`}>
+                    <span className="text-[10px] text-amber-500 font-medium block">Pending</span>
+                    <span className="text-base font-bold text-amber-500">{taskCount.pending}</span>
+                  </div>
+                  <div className={`p-3 rounded-xl border text-center ${isDark ? 'bg-slate-900/60 border-slate-700/60' : 'bg-white border-slate-200'}`}>
+                    <span className="text-[10px] text-emerald-500 font-medium block">Completed</span>
+                    <span className="text-base font-bold text-emerald-500">{taskCount.completed}</span>
+                  </div>
+                </div>
               </div>
+
+              {/* User Identifier Card */}
+              {currentUser && (
+                <div className={`p-3.5 rounded-xl border flex items-center justify-between ${isDark ? 'bg-slate-900/50 border-slate-800' : 'bg-white border-slate-200'}`}>
+                  <div className="text-xs">
+                    <p className="font-bold">Unique User ID (UID)</p>
+                    <p className="text-[11px] font-mono text-slate-400 truncate max-w-[240px] sm:max-w-xs">{currentUser.id}</p>
+                  </div>
+                  <button
+                    onClick={() => handleCopyUid(currentUser.id)}
+                    className="px-3 py-1.5 text-xs font-semibold text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/60 rounded-lg flex items-center gap-1.5 cursor-pointer hover:scale-105 active:scale-95 transition-transform"
+                  >
+                    {copiedUid ? <Check className="w-3.5 h-3.5 text-emerald-500" /> : <Copy className="w-3.5 h-3.5" />}
+                    <span>{copiedUid ? 'Copied' : 'Copy'}</span>
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* TAB 4: Themes & Appearance */}
+          {activeTab === 'appearance' && (
+            <div className="space-y-3">
+              <p className="text-xs text-slate-400 mb-2">
+                Choose a workspace visual theme and background atmosphere:
+              </p>
 
               <div className="space-y-2.5">
                 {THEMES.map((t) => {
@@ -425,9 +742,7 @@ export const UserModal: React.FC<UserModalProps> = ({
                       }`}
                     >
                       <div className="flex items-center gap-3">
-                        <div
-                          className={`w-8 h-8 rounded-lg border ${t.previewBorder} ${t.previewBg} flex items-center justify-center`}
-                        >
+                        <div className={`w-8 h-8 rounded-lg border ${t.previewBorder} ${t.previewBg} flex items-center justify-center`}>
                           <div className={`w-3 h-3 rounded-full ${t.previewAccent}`} />
                         </div>
                         <div>
@@ -452,6 +767,27 @@ export const UserModal: React.FC<UserModalProps> = ({
               </div>
             </div>
           )}
+
+          {/* Bottom Sign Out Bar */}
+          <div
+            className={`pt-4 border-t flex items-center justify-between ${
+              isDark ? 'border-slate-800' : 'border-slate-200'
+            }`}
+          >
+            <span className="text-xs text-slate-400">
+              {currentUser?.isAnonymous ? 'Guest Mode Active' : 'Authenticated Session'}
+            </span>
+            <button
+              id="modal-logout-action-btn"
+              type="button"
+              onClick={handleLogout}
+              disabled={loadingAction}
+              className="px-3.5 py-1.5 text-xs font-semibold text-rose-500 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 rounded-xl transition-all duration-150 hover:scale-105 active:scale-95 flex items-center gap-1.5 cursor-pointer disabled:opacity-50 border border-transparent hover:border-rose-200 dark:hover:border-rose-900"
+            >
+              <LogOut className="w-3.5 h-3.5" />
+              <span>Sign Out</span>
+            </button>
+          </div>
         </div>
       </div>
     </div>
