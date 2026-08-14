@@ -227,45 +227,45 @@ export const TaskCard: React.FC<TaskCardProps> = ({
           </div>
         </div>
 
-        {/* Right Side: Actions (View / Edit / Delete) with Smooth Hover Animations */}
-        <div className="flex items-center gap-1 shrink-0 opacity-70 group-hover:opacity-100 transition-opacity">
+        {/* Right Side: Actions (View / Edit / Delete) with Smooth Animations */}
+        <div className="flex items-center gap-0.5 sm:gap-1 shrink-0 opacity-90 sm:opacity-70 group-hover:opacity-100 transition-opacity">
           {onViewTask && (
             <button
               id={`view-task-btn-${task.id}`}
               onClick={() => onViewTask(task)}
-              className={`p-2 rounded-xl transition-all duration-150 hover:scale-110 active:scale-95 cursor-pointer ${
+              className={`p-2 sm:p-2 rounded-xl transition-all duration-150 active:scale-90 cursor-pointer ${
                 isDark
                   ? 'text-slate-400 hover:text-indigo-400 hover:bg-indigo-950/60'
                   : 'text-slate-400 hover:text-indigo-600 hover:bg-indigo-50'
               }`}
               title="View Task Details"
             >
-              <Eye className="w-3.5 h-3.5" />
+              <Eye className="w-4 h-4 sm:w-3.5 sm:h-3.5" />
             </button>
           )}
           <button
             id={`edit-task-btn-${task.id}`}
             onClick={() => onEditTask(task)}
-            className={`p-2 rounded-xl transition-all duration-150 hover:scale-110 active:scale-95 cursor-pointer ${
+            className={`p-2 sm:p-2 rounded-xl transition-all duration-150 active:scale-90 cursor-pointer ${
               isDark
                 ? 'text-slate-400 hover:text-indigo-400 hover:bg-indigo-950/60'
                 : 'text-slate-400 hover:text-indigo-600 hover:bg-indigo-50'
             }`}
             title="Edit Task"
           >
-            <Edit2 className="w-3.5 h-3.5" />
+            <Edit2 className="w-4 h-4 sm:w-3.5 sm:h-3.5" />
           </button>
           <button
             id={`delete-task-btn-${task.id}`}
             onClick={() => onDeleteTask(task)}
-            className={`p-2 rounded-xl transition-all duration-150 hover:scale-110 active:scale-95 cursor-pointer ${
+            className={`p-2 sm:p-2 rounded-xl transition-all duration-150 active:scale-90 cursor-pointer ${
               isDark
                 ? 'text-slate-400 hover:text-rose-400 hover:bg-rose-950/60'
                 : 'text-slate-400 hover:text-rose-600 hover:bg-rose-50'
             }`}
             title="Delete Task"
           >
-            <Trash2 className="w-3.5 h-3.5" />
+            <Trash2 className="w-4 h-4 sm:w-3.5 sm:h-3.5" />
           </button>
         </div>
       </div>

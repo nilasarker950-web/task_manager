@@ -9,6 +9,7 @@ import { ViewTaskModal } from './components/ViewTaskModal';
 import { UserModal } from './components/UserModal';
 import { ThemeSelectorModal } from './components/ThemeSelectorModal';
 import { DeleteConfirmModal } from './components/DeleteConfirmModal';
+import { MobileBottomNav } from './components/MobileBottomNav';
 import { AuthPage } from './components/AuthPage';
 import { BrandLogo } from './components/BrandLogo';
 import { Task, TaskStatus, FilterStatus, SortOption } from './types';
@@ -339,8 +340,8 @@ function TaskManagerContent() {
 
   // 3. Authenticated State: Full Workspace
   return (
-    <div className={`min-h-screen flex flex-col font-['Plus_Jakarta_Sans',sans-serif] selection:bg-indigo-500 selection:text-white transition-colors duration-200 ${canvasBgClass}`}>
-      {/* Top Navigation Bar */}
+    <div className={`h-[100dvh] lg:h-auto lg:min-h-screen flex flex-col overflow-hidden lg:overflow-visible font-['Plus_Jakarta_Sans',sans-serif] selection:bg-indigo-500 selection:text-white transition-colors duration-200 ${canvasBgClass}`}>
+      {/* Top Navigation Bar (Fixed & Sticky Header) */}
       <Navbar
         currentUser={currentUser}
         onOpenUserModal={() => setIsUserModalOpen(true)}
@@ -354,8 +355,8 @@ function TaskManagerContent() {
       />
 
       {/* Main Layout Container (Sidebar + Content Workspace) */}
-      <div className="flex-1 flex max-w-7xl w-full mx-auto items-start relative">
-        {/* Workspace Sidebar Drawer (Strictly Sticky and Fixed) */}
+      <div className="flex-1 flex max-w-7xl w-full mx-auto items-start relative overflow-hidden lg:overflow-visible">
+        {/* Workspace Sidebar Drawer (Sticky on desktop, slide-over drawer on mobile) */}
         <Sidebar
           isOpen={isSidebarOpen}
           onClose={() => setIsSidebarOpen(false)}
@@ -372,17 +373,17 @@ function TaskManagerContent() {
           isOnline={isOnline}
         />
 
-        {/* Main Content Workspace */}
-        <main className="flex-1 min-w-0 px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
+        {/* Main Content Workspace: Smooth momentum scrolling on mobile without window bounce */}
+        <main className="flex-1 min-w-0 h-full overflow-y-auto overscroll-y-contain px-3 sm:px-6 lg:px-8 py-3.5 sm:py-6 pb-28 lg:pb-10 lg:h-auto lg:overflow-visible">
           {/* Cloud sync error banner */}
           {syncError && (
-            <div className="mb-6 p-4 rounded-2xl bg-rose-50 dark:bg-rose-950/80 border border-rose-200 dark:border-rose-800 text-xs text-rose-700 dark:text-rose-300 flex items-center gap-2">
+            <div className="mb-4 sm:mb-6 p-3.5 sm:p-4 rounded-2xl bg-rose-50 dark:bg-rose-950/80 border border-rose-200 dark:border-rose-800 text-xs text-rose-700 dark:text-rose-300 flex items-center gap-2">
               <AlertCircle className="w-4 h-4 shrink-0" />
               <span>{syncError}</span>
             </div>
           )}
 
-          {/* Task Metrics */}
+          {/* Task Metrics Summary Cards */}
           <TaskStats
             tasks={tasks}
             activeFilter={activeFilter}
@@ -409,7 +410,7 @@ function TaskManagerContent() {
               </p>
             </div>
           ) : (
-            <div className="space-y-3">
+            <div className="space-y-2.5 sm:space-y-3">
               <AnimatePresence mode="popLayout">
                 {filteredAndSortedTasks.length > 0 ? (
                   filteredAndSortedTasks.map((task, idx) => (
@@ -431,7 +432,7 @@ function TaskManagerContent() {
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
                     exit={{ opacity: 0 }}
-                    className={`rounded-2xl border border-dashed p-12 text-center shadow-2xs ${
+                    className={`rounded-2xl border border-dashed p-8 sm:p-12 text-center shadow-2xs ${
                       isDark
                         ? 'bg-slate-900/60 border-slate-800 text-slate-300'
                         : 'bg-white border-slate-200/90 text-slate-800'
@@ -508,15 +509,15 @@ function TaskManagerContent() {
         </main>
       </div>
 
-      {/* Clean & Polished Minimal Footer */}
+      {/* Clean Desktop Minimal Footer */}
       <footer
-        className={`border-t py-4 mt-auto transition-colors duration-200 ${
+        className={`hidden lg:block border-t py-4 mt-auto transition-colors duration-200 ${
           isDark
             ? 'border-slate-800 bg-slate-900/90 text-slate-400'
             : 'border-slate-200/80 bg-white text-slate-500'
         }`}
       >
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-between gap-3 text-xs">
           <div className="flex items-center gap-2.5">
             <BrandLogo size="sm" showLabel={true} badgeText="WORKSPACE" />
           </div>
@@ -529,10 +530,23 @@ function TaskManagerContent() {
               <Palette className="w-3.5 h-3.5" />
               <span>Theme: {themeConfig.name}</span>
             </button>
-            <span className="hidden sm:inline font-mono opacity-60">Press 'N' for New Task</span>
+            <span className="font-mono opacity-60">Press 'N' for New Task</span>
           </div>
         </div>
       </footer>
+
+      {/* Mobile Native-style Bottom Navigation Bar */}
+      <MobileBottomNav
+        activeFilter={activeFilter}
+        onSelectFilter={(filter) => setActiveFilter(filter)}
+        onOpenNewTaskModal={() => {
+          setEditingTask(null);
+          setIsTaskModalOpen(true);
+        }}
+        onOpenUserModal={() => setIsUserModalOpen(true)}
+        counts={counts}
+        currentUser={currentUser}
+      />
 
       {/* Modals & Dialogs */}
       <ViewTaskModal
