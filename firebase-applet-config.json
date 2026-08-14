@@ -1,12 +1,12 @@
 {
-  "projectId": "light-attic-11ttq",
-  "appId": "1:509770259637:web:91284a0b5be08cb064b2fc",
-  "apiKey": "AIzaSyD9Nam_2TXrTXp8Gacp-zHVBh0DdNZf5nc",
-  "authDomain": "light-attic-11ttq.firebaseapp.com",
-  "firestoreDatabaseId": "ai-studio-cloudtaskmanager-088bf565-77db-42a8-a0c7-4470ff300c09",
-  "storageBucket": "light-attic-11ttq.firebasestorage.app",
-  "messagingSenderId": "509770259637",
-  "measurementId": "",
-  "oAuthClientId": "509770259637-b3ul65lemdghfs3jjthr0ukemcbj0mfv.apps.googleusercontent.com",
+  "projectId": "taskpulse-f127c",
+  "appId": "1:501944416848:web:790f91fafd57330794ef55",
+  "apiKey": "AIzaSyBVZbcZJ_oh_i3By_8BViIFHZquYC_Fpqo",
+  "authDomain": "taskpulse-f127c.firebaseapp.com",
+  "firestoreDatabaseId": "",
+  "storageBucket": "taskpulse-f127c.firebasestorage.app",
+  "messagingSenderId": "501944416848",
+  "measurementId": "G-YLGWHK3CNM",
+  "oAuthClientId": "",
   "recaptchaSiteKey": ""
 }
