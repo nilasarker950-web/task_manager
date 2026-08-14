@@ -31,7 +31,7 @@ export const DeleteConfirmModal: React.FC<DeleteConfirmModalProps> = ({
 
           <h3 className="text-base font-bold text-slate-900 mb-1">Delete Task?</h3>
           <p className="text-xs text-slate-500 mb-5 leading-relaxed">
-            Are you sure you want to permanently remove <span className="font-semibold text-slate-800">"{task.taskName}"</span> from Cloud Firestore?
+            Are you sure you want to permanently remove <span className="font-semibold text-slate-800">"{task.taskName}"</span> from your workspace? This action cannot be undone.
           </p>
 
           <div className="grid grid-cols-2 gap-2.5">

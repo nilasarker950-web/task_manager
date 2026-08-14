@@ -103,7 +103,7 @@ export const TaskModal: React.FC<TaskModalProps> = ({
               {initialTask ? 'Edit Task Details' : 'Create New Task'}
             </h2>
             <p className="text-xs text-slate-500">
-              Syncing to Cloud Firestore with deadline notifications
+              Set title, description, and time-bound deadline parameters
             </p>
           </div>
           <button
