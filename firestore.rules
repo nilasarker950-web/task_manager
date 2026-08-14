@@ -33,7 +33,8 @@ service cloud.firestore {
         data.description.size() <= 2000 &&
         data.deadline is string &&
         data.deadline.size() <= 100 &&
-        (data.status == 'Pending' || data.status == 'Completed') &&
+        (data.status == 'Pending' || data.status == 'Completed' || 
+         data.status == 'TODO' || data.status == 'IN_PROGRESS' || data.status == 'DONE') &&
         data.createdAt is string &&
         data.createdAt.size() <= 50 &&
         data.updatedAt is string &&
@@ -52,7 +53,7 @@ service cloud.firestore {
     // Tasks Collection Rules
     match /tasks/{taskId} {
       allow get: if isSignedIn() && existing().userId == request.auth.uid;
-      allow list: if isSignedIn() && resource.data.userId == request.auth.uid;
+      allow list: if isSignedIn();
       allow create: if isSignedIn() &&
         isValidId(taskId) &&
         isValidTask(incoming()) &&
