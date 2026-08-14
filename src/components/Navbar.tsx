@@ -2,6 +2,7 @@ import React from 'react';
 import { UserProfile } from '../types';
 import { BrandLogo } from './BrandLogo';
 import { useTheme } from '../context/ThemeContext';
+import { Plus } from 'lucide-react';
 
 interface NavbarProps {
   currentUser: UserProfile | null;
@@ -15,6 +16,7 @@ interface NavbarProps {
 export const Navbar: React.FC<NavbarProps> = ({
   currentUser,
   onOpenUserModal,
+  onOpenNewTaskModal,
 }) => {
   const { isDark } = useTheme();
 
@@ -33,8 +35,26 @@ export const Navbar: React.FC<NavbarProps> = ({
           <BrandLogo size="md" />
         </div>
 
-        {/* Right Side: Profile Avatar */}
-        <div className="flex items-center">
+        {/* Right Side: New Task Button + Profile Avatar */}
+        <div className="flex items-center gap-3">
+          {/* New Task Button (Desktop Only) */}
+          {onOpenNewTaskModal && (
+            <button
+              onClick={onOpenNewTaskModal}
+              className={`hidden lg:flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-all duration-150 cursor-pointer active:scale-95 focus:outline-hidden focus:ring-2 focus:ring-indigo-500/40 ${
+                isDark
+                  ? 'bg-indigo-600 hover:bg-indigo-500 text-white shadow-lg shadow-indigo-500/20'
+                  : 'bg-indigo-600 hover:bg-indigo-500 text-white shadow-lg shadow-indigo-500/20'
+              }`}
+              title="Create new task (N)"
+              aria-label="Create new task"
+            >
+              <Plus size={18} className="flex-shrink-0" />
+              <span>New Task</span>
+            </button>
+          )}
+
+          {/* Profile Avatar */}
           <button
             id="user-profile-avatar-btn"
             onClick={onOpenUserModal}
