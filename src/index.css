@@ -1,1 +1,60 @@
 @import "tailwindcss";
+
+@layer base {
+  /* Smooth font rendering & transition defaults */
+  * {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+}
+
+/* Background Variant Canvas Styles */
+.bg-canvas-slate {
+  background-color: #f8fafc;
+  background-image: radial-gradient(#cbd5e1 0.75px, transparent 0.75px);
+  background-size: 20px 20px;
+}
+
+.bg-canvas-midnight {
+  background-color: #0b0f19;
+  background-image: radial-gradient(#1e293b 1px, transparent 1px);
+  background-size: 24px 24px;
+}
+
+.bg-canvas-warm {
+  background-color: #faf7f2;
+  background-image: radial-gradient(#e7e0d3 0.8px, transparent 0.8px);
+  background-size: 20px 20px;
+}
+
+.bg-canvas-emerald {
+  background-color: #f3f8f5;
+  background-image: radial-gradient(#c6e2d5 0.8px, transparent 0.8px);
+  background-size: 20px 20px;
+}
+
+.bg-canvas-minimal {
+  background-color: #f3f4f6;
+  background-image: linear-gradient(to right, #e5e7eb 1px, transparent 1px),
+                    linear-gradient(to bottom, #e5e7eb 1px, transparent 1px);
+  background-size: 32px 32px;
+}
+
+/* Polished Interactive Hover Utility Animations */
+.interactive-card {
+  transition: all 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.interactive-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 25px -5px rgba(15, 23, 42, 0.08), 0 8px 10px -6px rgba(15, 23, 42, 0.04);
+}
+
+.interactive-button {
+  transition: all 0.16s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.interactive-button:hover {
+  transform: translateY(-1px);
+}
+.interactive-button:active {
+  transform: translateY(0.5px) scale(0.98);
+}

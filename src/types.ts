@@ -27,3 +27,15 @@ export type User = UserProfile;
 
 export type FilterStatus = 'All' | 'Pending' | 'Completed';
 export type SortOption = 'deadline_asc' | 'deadline_desc' | 'created_desc' | 'name_asc';
+
+export type BackgroundVariant = 'slate' | 'midnight' | 'warm' | 'emerald' | 'minimal';
+
+export interface ThemeConfig {
+  id: BackgroundVariant;
+  name: string;
+  description: string;
+  previewBg: string;
+  previewBorder: string;
+  previewAccent: string;
+  isDark?: boolean;
+}

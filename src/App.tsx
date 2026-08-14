@@ -6,10 +6,13 @@ import { TaskFilterBar } from './components/TaskFilterBar';
 import { TaskCard } from './components/TaskCard';
 import { TaskModal } from './components/TaskModal';
 import { UserModal } from './components/UserModal';
+import { ThemeSelectorModal } from './components/ThemeSelectorModal';
 import { DeleteConfirmModal } from './components/DeleteConfirmModal';
+import { AuthPage } from './components/AuthPage';
 import { BrandLogo } from './components/BrandLogo';
 import { Task, TaskStatus, FilterStatus, SortOption } from './types';
 import { useAuth, AuthProvider } from './context/AuthContext';
+import { ThemeProvider, useTheme } from './context/ThemeContext';
 import {
   subscribeToUserTasks,
   createCloudTask,
@@ -21,18 +24,18 @@ import {
   Inbox,
   Sparkles,
   Check,
-  LogIn,
   Loader2,
   AlertCircle,
   ShieldCheck,
   Zap,
   CheckCircle2,
-  Lock,
+  Palette,
 } from 'lucide-react';
 import { AnimatePresence, motion } from 'motion/react';
 
 function TaskManagerContent() {
-  const { currentUser, firebaseUser, loading, isOnline, signInWithGoogle, signInAsGuest } = useAuth();
+  const { currentUser, firebaseUser, loading, isOnline } = useAuth();
+  const { theme, isDark, themeConfig } = useTheme();
 
   const [tasks, setTasks] = useState<Task[]>([]);
   const [tasksLoading, setTasksLoading] = useState<boolean>(true);
@@ -49,6 +52,7 @@ function TaskManagerContent() {
   const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [isUserModalOpen, setIsUserModalOpen] = useState(false);
+  const [isThemeModalOpen, setIsThemeModalOpen] = useState(false);
   const [deletingTask, setDeletingTask] = useState<Task | null>(null);
 
   // Toast
@@ -68,6 +72,7 @@ function TaskManagerContent() {
         (e.key === 'n' || e.key === 'N') &&
         !isTaskModalOpen &&
         !isUserModalOpen &&
+        !isThemeModalOpen &&
         !['INPUT', 'TEXTAREA', 'SELECT'].includes((e.target as HTMLElement)?.tagName)
       ) {
         if (firebaseUser) {
@@ -80,7 +85,7 @@ function TaskManagerContent() {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [firebaseUser, isTaskModalOpen, isUserModalOpen]);
+  }, [firebaseUser, isTaskModalOpen, isUserModalOpen, isThemeModalOpen]);
 
   // Real-time Cloud Sync
   useEffect(() => {
@@ -191,8 +196,8 @@ function TaskManagerContent() {
       d3.setHours(18, 0, 0, 0);
 
       await createCloudTask(firebaseUser.uid, {
-        taskName: 'Review Quarterly Product Roadmap',
-        description: 'Audit core milestones, resource allocation, and prioritize Sprint 14 deliverables with the team.',
+        taskName: 'Review Enterprise Product Strategy',
+        description: 'Audit core milestones, resource allocation, and prioritize upcoming Q3 deliverables with team leads.',
         deadline: d1.toISOString(),
         status: 'Completed',
         userEmail: firebaseUser.email || undefined,
@@ -200,8 +205,8 @@ function TaskManagerContent() {
       });
 
       await createCloudTask(firebaseUser.uid, {
-        taskName: 'Finalize Cloud Architecture Security Review',
-        description: 'Verify role-based access control, encrypted payload vaults, and real-time state listeners.',
+        taskName: 'Security Hardening & Token Auditing',
+        description: 'Review role-based access control, cryptographic key rotation, and session isolation workflows.',
         deadline: d2.toISOString(),
         status: 'Pending',
         userEmail: firebaseUser.email || undefined,
@@ -217,7 +222,7 @@ function TaskManagerContent() {
         userName: firebaseUser.displayName || undefined,
       });
 
-      showToast('Sample productivity tasks loaded');
+      showToast('Sample tasks loaded');
     } catch (err) {
       console.error('Error seeding demo tasks:', err);
       showToast('Failed to load sample tasks');
@@ -273,27 +278,54 @@ function TaskManagerContent() {
     [tasks]
   );
 
+  // Background Canvas Dynamic Class
+  const canvasBgClass =
+    theme === 'midnight'
+      ? 'bg-canvas-midnight text-slate-100'
+      : theme === 'warm'
+      ? 'bg-canvas-warm text-slate-800'
+      : theme === 'emerald'
+      ? 'bg-canvas-emerald text-slate-800'
+      : theme === 'minimal'
+      ? 'bg-canvas-minimal text-slate-900'
+      : 'bg-canvas-slate text-slate-900';
+
+  // 1. Initial Authentication Loading State
+  if (loading) {
+    return (
+      <div className={`min-h-screen flex flex-col items-center justify-center font-['Plus_Jakarta_Sans',sans-serif] ${canvasBgClass}`}>
+        <Loader2 className="w-8 h-8 animate-spin text-indigo-600 dark:text-indigo-400" />
+        <p className="text-xs font-semibold mt-3 text-slate-600 dark:text-slate-300">
+          Connecting to secure workspace...
+        </p>
+      </div>
+    );
+  }
+
+  // 2. Unauthenticated State: Dedicated Login & Registration Page ONLY
+  if (!currentUser) {
+    return <AuthPage />;
+  }
+
+  // 3. Authenticated State: Full Workspace
   return (
-    <div className="min-h-screen bg-[#f8fafc] flex flex-col font-['Plus_Jakarta_Sans',sans-serif] selection:bg-indigo-500 selection:text-white">
+    <div className={`min-h-screen flex flex-col font-['Plus_Jakarta_Sans',sans-serif] selection:bg-indigo-500 selection:text-white transition-colors duration-200 ${canvasBgClass}`}>
       {/* Top Navigation Bar */}
       <Navbar
         currentUser={currentUser}
         onOpenUserModal={() => setIsUserModalOpen(true)}
         onOpenNewTaskModal={() => {
-          if (!firebaseUser) {
-            setIsUserModalOpen(true);
-            return;
-          }
           setEditingTask(null);
           setIsTaskModalOpen(true);
         }}
+        onOpenThemeModal={() => setIsThemeModalOpen(true)}
         onToggleSidebar={() => setIsSidebarOpen((prev) => !prev)}
         isOnline={isOnline}
       />
 
       {/* Main Layout Container (Sidebar + Content Workspace) */}
       <div className="flex-1 flex max-w-7xl w-full mx-auto">
-        {/* Workspace Sidebar Drawer */}
+        {/* Workspace Sidebar Drawer (Strictly Sticky and Fixed) */}
         <Sidebar
           isOpen={isSidebarOpen}
           onClose={() => setIsSidebarOpen(false)}
@@ -303,13 +335,10 @@ function TaskManagerContent() {
           currentUser={currentUser}
           onOpenUserModal={() => setIsUserModalOpen(true)}
           onOpenNewTaskModal={() => {
-            if (!firebaseUser) {
-              setIsUserModalOpen(true);
-              return;
-            }
             setEditingTask(null);
             setIsTaskModalOpen(true);
           }}
+          onOpenThemeModal={() => setIsThemeModalOpen(true)}
           isOnline={isOnline}
         />
 
@@ -317,187 +346,155 @@ function TaskManagerContent() {
         <main className="flex-1 min-w-0 px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
           {/* Cloud sync error banner */}
           {syncError && (
-            <div className="mb-6 p-4 rounded-xl bg-rose-50 border border-rose-200 text-xs text-rose-700 flex items-center gap-2">
+            <div className="mb-6 p-4 rounded-2xl bg-rose-50 dark:bg-rose-950/80 border border-rose-200 dark:border-rose-800 text-xs text-rose-700 dark:text-rose-300 flex items-center gap-2">
               <AlertCircle className="w-4 h-4 shrink-0" />
               <span>{syncError}</span>
             </div>
           )}
 
-          {/* Authentication State Router */}
-          {loading ? (
-            <div className="py-28 flex flex-col items-center justify-center text-slate-400 gap-3">
-              <Loader2 className="w-8 h-8 animate-spin text-indigo-600" />
-              <p className="text-xs font-semibold text-slate-600">Connecting to secure workspace...</p>
-            </div>
-          ) : !firebaseUser ? (
-            /* Unauthenticated Modern Landing View */
-            <div className="max-w-md mx-auto my-12 bg-white rounded-2xl border border-slate-200 p-8 sm:p-10 text-center shadow-xs">
-              <div className="flex justify-center mb-5">
-                <BrandLogo size="lg" showLabel={false} />
-              </div>
-              <h2 className="text-xl font-bold text-slate-900 mb-2 tracking-tight">
-                Welcome to TaskPulse
-              </h2>
-              <p className="text-xs text-slate-500 mb-7 leading-relaxed">
-                Experience unified task lifecycle management, automated deadline tracking, and seamless cross-device synchronization.
+          {/* Task Metrics */}
+          <TaskStats
+            tasks={tasks}
+            activeFilter={activeFilter}
+            onSelectFilter={(filter) => setActiveFilter(filter)}
+          />
+
+          {/* Filter, Search & Sort Control Bar */}
+          <TaskFilterBar
+            searchQuery={searchQuery}
+            onSearchChange={setSearchQuery}
+            statusFilter={activeFilter}
+            onStatusFilterChange={setActiveFilter}
+            sortOption={sortOption}
+            onSortOptionChange={setSortOption}
+            counts={counts}
+          />
+
+          {/* Task List Section */}
+          {tasksLoading ? (
+            <div className="py-16 flex flex-col items-center justify-center text-slate-400 gap-2.5">
+              <Loader2 className="w-6 h-6 animate-spin text-indigo-600 dark:text-indigo-400" />
+              <p className="text-xs font-medium text-slate-500 dark:text-slate-400">
+                Synchronizing workspace tasks...
               </p>
-
-              <div className="space-y-3 mb-6">
-                <button
-                  id="landing-google-signin-btn"
-                  onClick={() => signInWithGoogle()}
-                  className="w-full flex items-center justify-center gap-2.5 py-2.5 px-4 rounded-xl bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 text-white text-xs font-semibold shadow-xs hover:shadow transition-all cursor-pointer"
-                >
-                  <LogIn className="w-4 h-4" />
-                  <span>Continue with Google</span>
-                </button>
-
-                <button
-                  id="landing-guest-signin-btn"
-                  onClick={() => signInAsGuest()}
-                  className="w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl border border-slate-200 hover:border-slate-300 hover:bg-slate-50 text-slate-700 text-xs font-semibold transition-colors cursor-pointer"
-                >
-                  <span>Instant Guest Session</span>
-                </button>
-              </div>
-
-              <div className="pt-5 border-t border-slate-100 flex items-center justify-center gap-4 text-[11px] text-slate-400">
-                <span className="flex items-center gap-1">
-                  <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
-                  <span>End-to-End Encrypted</span>
-                </span>
-                <span>&bull;</span>
-                <span className="flex items-center gap-1">
-                  <CheckCircle2 className="w-3.5 h-3.5 text-indigo-600" />
-                  <span>Instant Sync</span>
-                </span>
-              </div>
             </div>
           ) : (
-            /* Main Authenticated Workspace Dashboard */
-            <>
-              {/* Task Metrics */}
-              <TaskStats
-                tasks={tasks}
-                activeFilter={activeFilter}
-                onSelectFilter={(filter) => setActiveFilter(filter)}
-              />
-
-              {/* Filter, Search & Sort Control Bar */}
-              <TaskFilterBar
-                searchQuery={searchQuery}
-                onSearchChange={setSearchQuery}
-                statusFilter={activeFilter}
-                onStatusFilterChange={setActiveFilter}
-                sortOption={sortOption}
-                onSortOptionChange={setSortOption}
-                counts={counts}
-              />
-
-              {/* Task List Section */}
-              {tasksLoading ? (
-                <div className="py-16 flex flex-col items-center justify-center text-slate-400 gap-2.5">
-                  <Loader2 className="w-6 h-6 animate-spin text-indigo-600" />
-                  <p className="text-xs font-medium text-slate-500">Synchronizing workspace tasks...</p>
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  <AnimatePresence mode="popLayout">
-                    {filteredAndSortedTasks.length > 0 ? (
-                      filteredAndSortedTasks.map((task) => (
-                        <TaskCard
-                          key={task.id}
-                          task={task}
-                          onToggleStatus={handleToggleStatus}
-                          onEditTask={(t) => {
-                            setEditingTask(t);
+            <div className="space-y-3">
+              <AnimatePresence mode="popLayout">
+                {filteredAndSortedTasks.length > 0 ? (
+                  filteredAndSortedTasks.map((task, idx) => (
+                    <TaskCard
+                      key={task.id}
+                      task={task}
+                      index={idx}
+                      onToggleStatus={handleToggleStatus}
+                      onEditTask={(t) => {
+                        setEditingTask(t);
+                        setIsTaskModalOpen(true);
+                      }}
+                      onDeleteTask={(t) => setDeletingTask(t)}
+                    />
+                  ))
+                ) : (
+                  <motion.div
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    className={`rounded-2xl border border-dashed p-12 text-center shadow-2xs ${
+                      isDark
+                        ? 'bg-slate-900/60 border-slate-800 text-slate-300'
+                        : 'bg-white border-slate-200/90 text-slate-800'
+                    }`}
+                  >
+                    <div
+                      className={`w-12 h-12 rounded-2xl flex items-center justify-center mx-auto mb-3 ${
+                        isDark ? 'bg-slate-800 text-slate-500' : 'bg-slate-100/80 text-slate-400'
+                      }`}
+                    >
+                      <Inbox className="w-6 h-6" />
+                    </div>
+                    <h3 className="text-sm font-bold mb-1">
+                      No tasks in this view
+                    </h3>
+                    <p className="text-xs text-slate-400 max-w-sm mx-auto mb-5 leading-relaxed">
+                      {searchQuery
+                        ? `No tasks matching "${searchQuery}". Clear your search query or reset filter.`
+                        : activeFilter !== 'All'
+                        ? `You don't have any ${activeFilter.toLowerCase()} tasks in this category.`
+                        : 'Get started by creating your first task in this workspace.'}
+                    </p>
+                    {searchQuery || activeFilter !== 'All' ? (
+                      <button
+                        id="clear-filters-btn"
+                        onClick={() => {
+                          setSearchQuery('');
+                          setActiveFilter('All');
+                        }}
+                        className={`px-4 py-2 text-xs font-semibold rounded-xl transition-all duration-150 hover:scale-105 active:scale-95 cursor-pointer ${
+                          isDark
+                            ? 'text-indigo-300 bg-indigo-950/80 hover:bg-indigo-900/80 border border-indigo-800'
+                            : 'text-indigo-600 bg-indigo-50 hover:bg-indigo-100'
+                        }`}
+                      >
+                        Clear Filters
+                      </button>
+                    ) : (
+                      <div className="flex items-center justify-center gap-2.5">
+                        <button
+                          id="empty-state-add-task-btn"
+                          onClick={() => {
+                            setEditingTask(null);
                             setIsTaskModalOpen(true);
                           }}
-                          onDeleteTask={(t) => setDeletingTask(t)}
-                        />
-                      ))
-                    ) : (
-                      <motion.div
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        exit={{ opacity: 0 }}
-                        className="bg-white rounded-2xl border border-dashed border-slate-200/90 p-12 text-center shadow-2xs"
-                      >
-                        <div className="w-12 h-12 rounded-2xl bg-slate-100/80 text-slate-400 flex items-center justify-center mx-auto mb-3">
-                          <Inbox className="w-6 h-6" />
-                        </div>
-                        <h3 className="text-sm font-bold text-slate-800 mb-1">
-                          No tasks in this view
-                        </h3>
-                        <p className="text-xs text-slate-500 max-w-sm mx-auto mb-5 leading-relaxed">
-                          {searchQuery
-                            ? `No tasks matching "${searchQuery}". Clear your search query or reset filter.`
-                            : activeFilter !== 'All'
-                            ? `You don't have any ${activeFilter.toLowerCase()} tasks in this category.`
-                            : 'Get started by creating your first task in this workspace.'}
-                        </p>
-                        {searchQuery || activeFilter !== 'All' ? (
-                          <button
-                            id="clear-filters-btn"
-                            onClick={() => {
-                              setSearchQuery('');
-                              setActiveFilter('All');
-                            }}
-                            className="px-4 py-2 text-xs font-semibold text-indigo-600 bg-indigo-50 hover:bg-indigo-100 rounded-xl transition-colors cursor-pointer"
-                          >
-                            Clear Filters
-                          </button>
-                        ) : (
-                          <div className="flex items-center justify-center gap-2.5">
-                            <button
-                              id="empty-state-add-task-btn"
-                              onClick={() => {
-                                setEditingTask(null);
-                                setIsTaskModalOpen(true);
-                              }}
-                              className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl shadow-2xs transition-colors cursor-pointer"
-                            >
-                              <Plus className="w-4 h-4" />
-                              <span>Create Task</span>
-                            </button>
-                            <button
-                              id="empty-state-seed-btn"
-                              onClick={handleSeedDemoTasks}
-                              className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-xl transition-colors cursor-pointer"
-                            >
-                              <Sparkles className="w-4 h-4 text-indigo-500" />
-                              <span>Load Sample Tasks</span>
-                            </button>
-                          </div>
-                        )}
-                      </motion.div>
+                          className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 rounded-xl shadow-xs hover:shadow-md hover:-translate-y-0.5 transition-all duration-150 cursor-pointer"
+                        >
+                          <Plus className="w-4 h-4" />
+                          <span>Create Task</span>
+                        </button>
+                        <button
+                          id="empty-state-seed-btn"
+                          onClick={handleSeedDemoTasks}
+                          className={`inline-flex items-center gap-1.5 px-4 py-2 text-xs font-semibold rounded-xl transition-all duration-150 hover:-translate-y-0.5 hover:shadow-xs active:scale-95 cursor-pointer ${
+                            isDark
+                              ? 'text-slate-300 bg-slate-800 hover:bg-slate-700 border border-slate-700'
+                              : 'text-slate-700 bg-slate-100 hover:bg-slate-200'
+                          }`}
+                        >
+                          <Sparkles className="w-4 h-4 text-indigo-500 dark:text-indigo-400" />
+                          <span>Load Sample Tasks</span>
+                        </button>
+                      </div>
                     )}
-                  </AnimatePresence>
-                </div>
-              )}
-            </>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
           )}
         </main>
       </div>
 
-      {/* Professional Footer */}
-      <footer className="border-t border-slate-200/80 bg-white py-5 mt-auto">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-slate-500">
-          <div className="flex items-center gap-3">
-            <BrandLogo size="sm" showLabel={true} badgeText="ENTERPRISE" />
-            <span className="hidden md:inline text-slate-300">|</span>
-            <span className="hidden md:inline text-slate-500 text-[11px]">
-              High-performance productivity & deadline management
-            </span>
+      {/* Clean & Polished Minimal Footer */}
+      <footer
+        className={`border-t py-4 mt-auto transition-colors duration-200 ${
+          isDark
+            ? 'border-slate-800 bg-slate-900/90 text-slate-400'
+            : 'border-slate-200/80 bg-white text-slate-500'
+        }`}
+      >
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs">
+          <div className="flex items-center gap-2.5">
+            <BrandLogo size="sm" showLabel={true} badgeText="WORKSPACE" />
           </div>
 
-          <div className="flex items-center gap-4 text-[11px] text-slate-400 font-medium">
-            <div className="flex items-center gap-1.5 text-emerald-700 bg-emerald-50/70 border border-emerald-200/60 px-2 py-0.5 rounded-md">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-              <span>Operational &bull; 99.99% Uptime</span>
-            </div>
-            <span className="hidden sm:inline font-mono">Press 'N' for New Task</span>
-            <span className="font-mono text-slate-400">v2.4.0</span>
+          <div className="flex items-center gap-4 text-[11px] font-medium opacity-80">
+            <button
+              onClick={() => setIsThemeModalOpen(true)}
+              className="flex items-center gap-1.5 hover:text-indigo-500 transition-colors cursor-pointer"
+            >
+              <Palette className="w-3.5 h-3.5" />
+              <span>Theme: {themeConfig.name}</span>
+            </button>
+            <span className="hidden sm:inline font-mono opacity-60">Press 'N' for New Task</span>
           </div>
         </div>
       </footer>
@@ -519,6 +516,11 @@ function TaskManagerContent() {
         taskCount={counts}
       />
 
+      <ThemeSelectorModal
+        isOpen={isThemeModalOpen}
+        onClose={() => setIsThemeModalOpen(false)}
+      />
+
       <DeleteConfirmModal
         isOpen={!!deletingTask}
         onClose={() => setDeletingTask(null)}
@@ -526,14 +528,14 @@ function TaskManagerContent() {
         task={deletingTask}
       />
 
-      {/* Floating Toast Notification */}
+      {/* Floating Toast Notification with Spring Motion */}
       <AnimatePresence>
         {toastMessage && (
           <motion.div
             initial={{ opacity: 0, y: 16, scale: 0.96 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 8, scale: 0.96 }}
-            className="fixed bottom-6 right-6 z-50 flex items-center gap-2.5 px-4 py-2.5 rounded-xl bg-slate-900 text-white text-xs font-semibold shadow-lg shadow-slate-900/10 border border-slate-800"
+            className="fixed bottom-6 right-6 z-50 flex items-center gap-2.5 px-4 py-2.5 rounded-xl bg-slate-900 dark:bg-slate-800 text-white text-xs font-semibold shadow-xl border border-slate-700/80"
           >
             <Check className="w-4 h-4 text-emerald-400 shrink-0" />
             <span>{toastMessage}</span>
@@ -546,8 +548,10 @@ function TaskManagerContent() {
 
 export default function App() {
   return (
-    <AuthProvider>
-      <TaskManagerContent />
-    </AuthProvider>
+    <ThemeProvider>
+      <AuthProvider>
+        <TaskManagerContent />
+      </AuthProvider>
+    </ThemeProvider>
   );
 }

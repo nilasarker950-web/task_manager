@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTheme } from '../context/ThemeContext';
 
 interface BrandLogoProps {
   size?: 'sm' | 'md' | 'lg';
@@ -13,6 +14,8 @@ export const BrandLogo: React.FC<BrandLogoProps> = ({
   badgeText,
   className = '',
 }) => {
+  const { isDark } = useTheme();
+
   const iconSizes = {
     sm: 'w-7 h-7 rounded-lg',
     md: 'w-9 h-9 rounded-xl',
@@ -33,14 +36,14 @@ export const BrandLogo: React.FC<BrandLogoProps> = ({
 
   return (
     <div className={`flex items-center gap-2.5 ${className}`}>
-      {/* Dynamic Geometric Gradient Logo Icon */}
+      {/* Dynamic Geometric Gradient Logo Icon with Hover Pulse Effect */}
       <div
-        className={`${iconSizes[size]} bg-gradient-to-br from-indigo-600 via-indigo-700 to-violet-800 flex items-center justify-center text-white shadow-sm ring-1 ring-indigo-500/20 relative overflow-hidden group shrink-0`}
+        className={`${iconSizes[size]} bg-gradient-to-br from-indigo-600 via-indigo-700 to-violet-800 flex items-center justify-center text-white shadow-sm ring-1 ring-indigo-500/20 relative overflow-hidden group shrink-0 transition-transform duration-200 hover:scale-105`}
       >
         {/* Subtle glass reflection highlight */}
         <div className="absolute inset-0 bg-gradient-to-tr from-white/0 via-white/10 to-white/25 pointer-events-none" />
         <svg
-          className={`${svgSizes[size]} text-white transition-transform group-hover:scale-105 duration-200`}
+          className={`${svgSizes[size]} text-white transition-transform group-hover:rotate-6 duration-200`}
           viewBox="0 0 24 24"
           fill="none"
           stroke="currentColor"
@@ -56,11 +59,21 @@ export const BrandLogo: React.FC<BrandLogoProps> = ({
       {showLabel && (
         <div className="flex flex-col">
           <div className="flex items-center gap-1.5 leading-none">
-            <span className={`${textSizes[size]} text-slate-900 tracking-tight`}>
-              Task<span className="text-indigo-600">Pulse</span>
+            <span
+              className={`${textSizes[size]} ${
+                isDark ? 'text-white' : 'text-slate-900'
+              } tracking-tight`}
+            >
+              Task<span className="text-indigo-600 dark:text-indigo-400">Pulse</span>
             </span>
             {badgeText && (
-              <span className="text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-indigo-50 text-indigo-700 border border-indigo-200/80 font-mono">
+              <span
+                className={`text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded font-mono ${
+                  isDark
+                    ? 'bg-indigo-950/80 text-indigo-300 border border-indigo-800'
+                    : 'bg-indigo-50 text-indigo-700 border border-indigo-200/80'
+                }`}
+              >
                 {badgeText}
               </span>
             )}

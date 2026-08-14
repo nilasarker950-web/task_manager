@@ -1,97 +1,84 @@
 import React from 'react';
-import { Menu, Plus, ChevronDown, Wifi, Sparkles, CheckCircle2 } from 'lucide-react';
+import { Plus, ChevronDown } from 'lucide-react';
 import { UserProfile } from '../types';
 import { BrandLogo } from './BrandLogo';
+import { useTheme } from '../context/ThemeContext';
 
 interface NavbarProps {
   currentUser: UserProfile | null;
   onOpenUserModal: () => void;
   onOpenNewTaskModal: () => void;
-  onToggleSidebar: () => void;
-  isOnline: boolean;
+  onOpenThemeModal?: () => void;
+  onToggleSidebar?: () => void;
+  isOnline?: boolean;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
   currentUser,
   onOpenUserModal,
   onOpenNewTaskModal,
-  onToggleSidebar,
-  isOnline,
 }) => {
-  return (
-    <header className="sticky top-0 z-30 bg-white/95 backdrop-blur-md border-b border-slate-200/80 shadow-[0_1px_3px_rgba(0,0,0,0.02)]">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-4">
-        {/* Left Side: Sidebar Toggle & Brand */}
-        <div className="flex items-center gap-3 sm:gap-4">
-          <button
-            id="sidebar-toggle-btn"
-            onClick={onToggleSidebar}
-            className="p-2 -ml-1.5 rounded-xl text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition-colors cursor-pointer"
-            aria-label="Toggle navigation drawer"
-          >
-            <Menu className="w-5 h-5" />
-          </button>
+  const { isDark } = useTheme();
 
+  return (
+    <header
+      className={`sticky top-0 z-30 backdrop-blur-md border-b transition-colors duration-200 ${
+        isDark
+          ? 'bg-slate-900/90 border-slate-800 shadow-[0_1px_3px_rgba(0,0,0,0.3)]'
+          : 'bg-white/90 border-slate-200/80 shadow-[0_1px_3px_rgba(0,0,0,0.02)]'
+      }`}
+    >
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-4">
+        {/* Left Side: Brand Logo */}
+        <div className="flex items-center gap-3">
           <BrandLogo size="md" badgeText="WORKSPACE" />
         </div>
 
-        {/* Center / Right Controls */}
-        <div className="flex items-center gap-2.5 sm:gap-3.5">
-          {/* Live Sync Status Pill */}
-          <div
-            id="system-status-indicator"
-            className="hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-slate-50 border border-slate-200/80 text-[11px] font-medium text-slate-600"
-            title="Real-time reactive state synchronization"
-          >
-            <span
-              className={`w-2 h-2 rounded-full ${
-                isOnline ? 'bg-emerald-500 ring-2 ring-emerald-100 animate-pulse' : 'bg-slate-400'
-              }`}
-            />
-            <span className="font-semibold text-slate-700">
-              {isOnline ? 'Cloud Synced' : 'Offline'}
-            </span>
-          </div>
-
-          {/* User Profile / Auth Toggle Button */}
+        {/* Right Side: Dedicated Profile & Primary Action */}
+        <div className="flex items-center gap-2.5 sm:gap-3">
+          {/* Dedicated User Profile Button */}
           <button
             id="user-profile-btn"
             onClick={onOpenUserModal}
-            className="flex items-center gap-2.5 py-1 px-2 sm:px-3 rounded-xl border border-slate-200 hover:border-slate-300 bg-white hover:bg-slate-50/80 transition-all text-slate-700 text-xs font-semibold shadow-2xs group cursor-pointer"
-            title="Account & Security Settings"
+            className={`flex items-center gap-2 py-1.5 px-3 rounded-xl border transition-all duration-150 cursor-pointer text-xs font-semibold shadow-2xs hover:-translate-y-0.5 hover:shadow-xs active:scale-95 group ${
+              isDark
+                ? 'bg-slate-800 border-slate-700 text-slate-200 hover:bg-slate-700 hover:border-slate-600'
+                : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50 hover:border-slate-300'
+            }`}
+            title="Dedicated Profile & Account Settings"
           >
             {currentUser?.avatarUrl ? (
               <img
                 src={currentUser.avatarUrl}
                 alt={currentUser.name}
                 referrerPolicy="no-referrer"
-                className="w-7 h-7 rounded-full object-cover ring-1 ring-slate-200"
+                className="w-7 h-7 rounded-full object-cover ring-1 ring-slate-300 dark:ring-slate-600"
               />
             ) : (
               <div className="w-7 h-7 rounded-full flex items-center justify-center text-white text-[11px] font-bold bg-indigo-600 shadow-2xs">
                 {currentUser?.name ? currentUser.name.charAt(0).toUpperCase() : 'G'}
               </div>
             )}
-            <div className="text-left hidden md:block max-w-[120px]">
-              <p className="text-xs font-semibold text-slate-800 truncate leading-tight">
+            <div className="text-left max-w-[120px]">
+              <p className="text-xs font-semibold truncate leading-tight">
                 {currentUser?.name || 'Guest User'}
               </p>
               <p className="text-[10px] text-slate-400 font-normal truncate">
                 {currentUser?.isAnonymous ? 'Guest Mode' : 'Verified'}
               </p>
             </div>
-            <ChevronDown className="w-3.5 h-3.5 text-slate-400 group-hover:text-slate-600 transition-transform group-hover:translate-y-0.5" />
+            <ChevronDown className="w-3.5 h-3.5 text-slate-400 group-hover:text-slate-600 dark:group-hover:text-slate-200 transition-transform group-hover:translate-y-0.5" />
           </button>
 
           {/* New Task Primary Button */}
           <button
             id="add-new-task-btn"
             onClick={onOpenNewTaskModal}
-            className="flex items-center gap-1.5 px-3.5 sm:px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 text-white font-semibold text-xs shadow-xs hover:shadow transition-all cursor-pointer group"
+            className="flex items-center gap-1.5 px-3.5 sm:px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 text-white font-semibold text-xs shadow-xs hover:shadow-md hover:-translate-y-0.5 transition-all duration-150 cursor-pointer group"
           >
             <Plus className="w-4 h-4 shrink-0 group-hover:rotate-90 transition-transform duration-200" />
             <span className="font-semibold">New Task</span>
-            <kbd className="hidden lg:inline-block ml-1 px-1.5 py-0.2 bg-indigo-700 text-[9px] font-mono rounded text-indigo-100">
+            <kbd className="hidden lg:inline-block ml-1 px-1.5 py-0.2 bg-indigo-700/80 text-[9px] font-mono rounded text-indigo-100">
               N
             </kbd>
           </button>
