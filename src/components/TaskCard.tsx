@@ -1,5 +1,5 @@
 import React from 'react';
-import { Calendar, Clock, CheckCircle2, Circle, Edit2, Trash2, AlertCircle, Sparkles } from 'lucide-react';
+import { Calendar, Clock, CheckCircle2, Circle, Edit2, Trash2, AlertCircle, Eye } from 'lucide-react';
 import { motion } from 'motion/react';
 import { Task } from '../types';
 import { useTheme } from '../context/ThemeContext';
@@ -8,6 +8,7 @@ interface TaskCardProps {
   task: Task;
   index?: number;
   onToggleStatus: (taskId: string) => void;
+  onViewTask?: (task: Task) => void;
   onEditTask: (task: Task) => void;
   onDeleteTask: (task: Task) => void;
 }
@@ -16,6 +17,7 @@ export const TaskCard: React.FC<TaskCardProps> = ({
   task,
   index = 0,
   onToggleStatus,
+  onViewTask,
   onEditTask,
   onDeleteTask,
 }) => {
@@ -127,11 +129,13 @@ export const TaskCard: React.FC<TaskCardProps> = ({
             <div className="flex flex-wrap items-center gap-2 mb-1.5">
               <h3
                 id={`task-title-${task.id}`}
-                className={`text-sm sm:text-base font-bold tracking-tight truncate transition-colors duration-150 ${
+                onClick={() => onViewTask && onViewTask(task)}
+                className={`text-sm sm:text-base font-bold tracking-tight truncate transition-colors duration-150 cursor-pointer ${
                   isCompleted
                     ? 'line-through text-slate-400 dark:text-slate-500 font-medium'
-                    : 'text-slate-900 dark:text-slate-100 group-hover:text-indigo-600 dark:group-hover:text-indigo-400'
+                    : 'text-slate-900 dark:text-slate-100 hover:text-indigo-600 dark:hover:text-indigo-400'
                 }`}
+                title="Click to view task details"
               >
                 {task.taskName}
               </h3>
@@ -171,11 +175,13 @@ export const TaskCard: React.FC<TaskCardProps> = ({
             {task.description ? (
               <p
                 id={`task-desc-${task.id}`}
-                className={`text-xs sm:text-sm mb-3.5 whitespace-pre-wrap leading-relaxed transition-colors ${
+                onClick={() => onViewTask && onViewTask(task)}
+                className={`text-xs sm:text-sm mb-3.5 whitespace-pre-wrap leading-relaxed line-clamp-2 transition-colors cursor-pointer ${
                   isCompleted
                     ? 'text-slate-400 dark:text-slate-500'
-                    : 'text-slate-600 dark:text-slate-300'
+                    : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-slate-100'
                 }`}
+                title="Click to view full description"
               >
                 {task.description}
               </p>
@@ -221,8 +227,22 @@ export const TaskCard: React.FC<TaskCardProps> = ({
           </div>
         </div>
 
-        {/* Right Side: Actions (Edit / Delete) with Smooth Hover Animations */}
+        {/* Right Side: Actions (View / Edit / Delete) with Smooth Hover Animations */}
         <div className="flex items-center gap-1 shrink-0 opacity-70 group-hover:opacity-100 transition-opacity">
+          {onViewTask && (
+            <button
+              id={`view-task-btn-${task.id}`}
+              onClick={() => onViewTask(task)}
+              className={`p-2 rounded-xl transition-all duration-150 hover:scale-110 active:scale-95 cursor-pointer ${
+                isDark
+                  ? 'text-slate-400 hover:text-indigo-400 hover:bg-indigo-950/60'
+                  : 'text-slate-400 hover:text-indigo-600 hover:bg-indigo-50'
+              }`}
+              title="View Task Details"
+            >
+              <Eye className="w-3.5 h-3.5" />
+            </button>
+          )}
           <button
             id={`edit-task-btn-${task.id}`}
             onClick={() => onEditTask(task)}

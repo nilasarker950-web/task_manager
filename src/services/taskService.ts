@@ -14,11 +14,10 @@ import { Task, TaskStatus, UserProfile } from '../types';
 
 const TASKS_COLLECTION = 'tasks';
 const USERS_COLLECTION = 'users';
-const GUEST_STORAGE_KEY = 'taskpulse_guest_tasks';
 
-function getLocalGuestTasks(): Task[] {
+function getLocalGuestTasks(userId: string): Task[] {
   try {
-    const raw = localStorage.getItem(GUEST_STORAGE_KEY);
+    const raw = localStorage.getItem(`taskpulse_tasks_${userId}`);
     if (!raw) return [];
     return JSON.parse(raw);
   } catch {
@@ -26,11 +25,11 @@ function getLocalGuestTasks(): Task[] {
   }
 }
 
-function saveLocalGuestTasks(tasks: Task[]): void {
+function saveLocalGuestTasks(userId: string, tasks: Task[]): void {
   try {
-    localStorage.setItem(GUEST_STORAGE_KEY, JSON.stringify(tasks));
+    localStorage.setItem(`taskpulse_tasks_${userId}`, JSON.stringify(tasks));
   } catch (e) {
-    console.error('Failed to save guest tasks:', e);
+    console.error('Failed to save user tasks:', e);
   }
 }
 
@@ -41,16 +40,23 @@ export function subscribeToUserTasks(
 ): () => void {
   // If guest mode (offline or local guest fallback)
   if (userId.startsWith('guest_') || userId === 'guest') {
-    const guestTasks = getLocalGuestTasks();
+    const guestTasks = getLocalGuestTasks(userId);
     onSuccess(guestTasks);
 
     const handleStorage = (e: StorageEvent) => {
-      if (e.key === GUEST_STORAGE_KEY) {
-        onSuccess(getLocalGuestTasks());
+      if (e.key === `taskpulse_tasks_${userId}`) {
+        onSuccess(getLocalGuestTasks(userId));
       }
     };
+    const handleLocalSync = () => {
+      onSuccess(getLocalGuestTasks(userId));
+    };
     window.addEventListener('storage', handleStorage);
-    return () => window.removeEventListener('storage', handleStorage);
+    window.addEventListener('taskpulse_guest_sync', handleLocalSync);
+    return () => {
+      window.removeEventListener('storage', handleStorage);
+      window.removeEventListener('taskpulse_guest_sync', handleLocalSync);
+    };
   }
 
   const tasksRef = collection(db, TASKS_COLLECTION);
@@ -117,9 +123,9 @@ export async function createCloudTask(
   };
 
   if (userId.startsWith('guest_') || userId === 'guest') {
-    const existing = getLocalGuestTasks();
+    const existing = getLocalGuestTasks(userId);
     const updated = [newTask, ...existing];
-    saveLocalGuestTasks(updated);
+    saveLocalGuestTasks(userId, updated);
     window.dispatchEvent(new Event('taskpulse_guest_sync'));
     return taskId;
   }
@@ -153,21 +159,24 @@ export async function updateCloudTask(
     description?: string;
     deadline?: string;
     status?: TaskStatus;
-  }
+  },
+  userId?: string
 ): Promise<void> {
   // Check if guest task in localStorage
-  const guestTasks = getLocalGuestTasks();
-  const guestIndex = guestTasks.findIndex((t) => t.id === taskId);
-  if (guestIndex >= 0) {
-    const now = new Date().toISOString();
-    guestTasks[guestIndex] = {
-      ...guestTasks[guestIndex],
-      ...updates,
-      updatedAt: now,
-    };
-    saveLocalGuestTasks(guestTasks);
-    window.dispatchEvent(new Event('taskpulse_guest_sync'));
-    return;
+  if (userId && (userId.startsWith('guest_') || userId === 'guest')) {
+    const guestTasks = getLocalGuestTasks(userId);
+    const guestIndex = guestTasks.findIndex((t) => t.id === taskId);
+    if (guestIndex >= 0) {
+      const now = new Date().toISOString();
+      guestTasks[guestIndex] = {
+        ...guestTasks[guestIndex],
+        ...updates,
+        updatedAt: now,
+      };
+      saveLocalGuestTasks(userId, guestTasks);
+      window.dispatchEvent(new Event('taskpulse_guest_sync'));
+      return;
+    }
   }
 
   const taskDocRef = doc(db, TASKS_COLLECTION, taskId);
@@ -189,13 +198,15 @@ export async function updateCloudTask(
   }
 }
 
-export async function deleteCloudTask(taskId: string): Promise<void> {
-  const guestTasks = getLocalGuestTasks();
-  const filteredGuestTasks = guestTasks.filter((t) => t.id !== taskId);
-  if (filteredGuestTasks.length !== guestTasks.length) {
-    saveLocalGuestTasks(filteredGuestTasks);
-    window.dispatchEvent(new Event('taskpulse_guest_sync'));
-    return;
+export async function deleteCloudTask(taskId: string, userId?: string): Promise<void> {
+  if (userId && (userId.startsWith('guest_') || userId === 'guest')) {
+    const guestTasks = getLocalGuestTasks(userId);
+    const filteredGuestTasks = guestTasks.filter((t) => t.id !== taskId);
+    if (filteredGuestTasks.length !== guestTasks.length) {
+      saveLocalGuestTasks(userId, filteredGuestTasks);
+      window.dispatchEvent(new Event('taskpulse_guest_sync'));
+      return;
+    }
   }
 
   const taskDocRef = doc(db, TASKS_COLLECTION, taskId);

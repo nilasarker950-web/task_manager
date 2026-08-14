@@ -5,6 +5,7 @@ import { TaskStats } from './components/TaskStats';
 import { TaskFilterBar } from './components/TaskFilterBar';
 import { TaskCard } from './components/TaskCard';
 import { TaskModal } from './components/TaskModal';
+import { ViewTaskModal } from './components/ViewTaskModal';
 import { UserModal } from './components/UserModal';
 import { ThemeSelectorModal } from './components/ThemeSelectorModal';
 import { DeleteConfirmModal } from './components/DeleteConfirmModal';
@@ -51,6 +52,7 @@ function TaskManagerContent() {
   // Modals
   const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
+  const [viewingTask, setViewingTask] = useState<Task | null>(null);
   const [isUserModalOpen, setIsUserModalOpen] = useState(false);
   const [isThemeModalOpen, setIsThemeModalOpen] = useState(false);
   const [deletingTask, setDeletingTask] = useState<Task | null>(null);
@@ -65,12 +67,23 @@ function TaskManagerContent() {
     }, 3000);
   };
 
+  // Keep viewingTask in sync with real-time updates
+  useEffect(() => {
+    if (viewingTask) {
+      const updated = tasks.find((t) => t.id === viewingTask.id);
+      if (updated) {
+        setViewingTask(updated);
+      }
+    }
+  }, [tasks]);
+
   // Keyboard shortcut listener ('N' to create new task if not in input)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (
         (e.key === 'n' || e.key === 'N') &&
         !isTaskModalOpen &&
+        !viewingTask &&
         !isUserModalOpen &&
         !isThemeModalOpen &&
         !['INPUT', 'TEXTAREA', 'SELECT'].includes((e.target as HTMLElement)?.tagName)
@@ -85,11 +98,11 @@ function TaskManagerContent() {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [firebaseUser, isTaskModalOpen, isUserModalOpen, isThemeModalOpen]);
+  }, [currentUser, isTaskModalOpen, viewingTask, isUserModalOpen, isThemeModalOpen]);
 
-  // Real-time Cloud Sync
+  // Real-time Cloud Sync strictly isolated per user
   useEffect(() => {
-    if (!firebaseUser?.uid) {
+    if (!currentUser?.id) {
       setTasks([]);
       setTasksLoading(false);
       return;
@@ -99,7 +112,7 @@ function TaskManagerContent() {
     setSyncError(null);
 
     const unsubscribe = subscribeToUserTasks(
-      firebaseUser.uid,
+      currentUser.id,
       (fetchedTasks) => {
         setTasks(fetchedTasks);
         setTasksLoading(false);
@@ -112,14 +125,14 @@ function TaskManagerContent() {
     );
 
     return () => unsubscribe();
-  }, [firebaseUser?.uid]);
+  }, [currentUser?.id]);
 
   // Handle Add or Update Task
   const handleSaveTask = async (
     taskData: Omit<Task, 'id' | 'createdAt' | 'updatedAt'>,
     taskId?: string
   ) => {
-    if (!firebaseUser) {
+    if (!currentUser) {
       showToast('Please sign in to save tasks');
       setIsUserModalOpen(true);
       return;
@@ -127,21 +140,25 @@ function TaskManagerContent() {
 
     try {
       if (taskId) {
-        await updateCloudTask(taskId, {
-          taskName: taskData.taskName,
-          description: taskData.description,
-          deadline: taskData.deadline,
-          status: taskData.status,
-        });
+        await updateCloudTask(
+          taskId,
+          {
+            taskName: taskData.taskName,
+            description: taskData.description,
+            deadline: taskData.deadline,
+            status: taskData.status,
+          },
+          currentUser.id
+        );
         showToast('Task updated successfully');
       } else {
-        await createCloudTask(firebaseUser.uid, {
+        await createCloudTask(currentUser.id, {
           taskName: taskData.taskName,
           description: taskData.description,
           deadline: taskData.deadline,
           status: taskData.status,
-          userEmail: firebaseUser.email || undefined,
-          userName: firebaseUser.displayName || undefined,
+          userEmail: currentUser.email || undefined,
+          userName: currentUser.name || undefined,
         });
         showToast('Task created successfully');
       }
@@ -153,12 +170,13 @@ function TaskManagerContent() {
 
   // Toggle Task Status (Pending <-> Completed)
   const handleToggleStatus = async (taskId: string) => {
+    if (!currentUser) return;
     const target = tasks.find((t) => t.id === taskId);
     if (!target) return;
 
     const newStatus: TaskStatus = target.status === 'Pending' ? 'Completed' : 'Pending';
     try {
-      await updateCloudTask(taskId, { status: newStatus });
+      await updateCloudTask(taskId, { status: newStatus }, currentUser.id);
       showToast(`Task marked as ${newStatus}`);
     } catch (err) {
       console.error('Error toggling status:', err);
@@ -168,9 +186,9 @@ function TaskManagerContent() {
 
   // Delete Task
   const handleConfirmDelete = async () => {
-    if (!deletingTask) return;
+    if (!deletingTask || !currentUser) return;
     try {
-      await deleteCloudTask(deletingTask.id);
+      await deleteCloudTask(deletingTask.id, currentUser.id);
       showToast(`Removed "${deletingTask.taskName}"`);
       setDeletingTask(null);
     } catch (err) {
@@ -181,7 +199,7 @@ function TaskManagerContent() {
 
   // Seed sample high-value tasks
   const handleSeedDemoTasks = async () => {
-    if (!firebaseUser) return;
+    if (!currentUser) return;
     try {
       const d1 = new Date();
       d1.setDate(d1.getDate() + 1);
@@ -195,31 +213,31 @@ function TaskManagerContent() {
       d3.setDate(d3.getDate() - 1);
       d3.setHours(18, 0, 0, 0);
 
-      await createCloudTask(firebaseUser.uid, {
+      await createCloudTask(currentUser.id, {
         taskName: 'Review Enterprise Product Strategy',
         description: 'Audit core milestones, resource allocation, and prioritize upcoming Q3 deliverables with team leads.',
         deadline: d1.toISOString(),
         status: 'Completed',
-        userEmail: firebaseUser.email || undefined,
-        userName: firebaseUser.displayName || undefined,
+        userEmail: currentUser.email || undefined,
+        userName: currentUser.name || undefined,
       });
 
-      await createCloudTask(firebaseUser.uid, {
+      await createCloudTask(currentUser.id, {
         taskName: 'Security Hardening & Token Auditing',
         description: 'Review role-based access control, cryptographic key rotation, and session isolation workflows.',
         deadline: d2.toISOString(),
         status: 'Pending',
-        userEmail: firebaseUser.email || undefined,
-        userName: firebaseUser.displayName || undefined,
+        userEmail: currentUser.email || undefined,
+        userName: currentUser.name || undefined,
       });
 
-      await createCloudTask(firebaseUser.uid, {
+      await createCloudTask(currentUser.id, {
         taskName: 'Prepare Executive Performance Deck',
         description: 'Compile productivity metrics, cycle times, and operational milestone summaries for stakeholders.',
         deadline: d3.toISOString(),
         status: 'Pending',
-        userEmail: firebaseUser.email || undefined,
-        userName: firebaseUser.displayName || undefined,
+        userEmail: currentUser.email || undefined,
+        userName: currentUser.name || undefined,
       });
 
       showToast('Sample tasks loaded');
@@ -232,10 +250,19 @@ function TaskManagerContent() {
   // Filter and Sort Tasks
   const filteredAndSortedTasks = useMemo(() => {
     let result = [...tasks];
+    const nowTime = new Date().getTime();
 
     // Status filter
-    if (activeFilter !== 'All') {
-      result = result.filter((t) => t.status === activeFilter);
+    if (activeFilter === 'Pending') {
+      result = result.filter((t) => t.status === 'Pending');
+    } else if (activeFilter === 'Completed') {
+      result = result.filter((t) => t.status === 'Completed');
+    } else if (activeFilter === 'Overdue') {
+      result = result.filter((t) => {
+        if (t.status === 'Completed') return false;
+        const deadlineTime = new Date(t.deadline).getTime();
+        return deadlineTime < nowTime;
+      });
     }
 
     // Search query filter
@@ -268,15 +295,18 @@ function TaskManagerContent() {
     return result;
   }, [tasks, activeFilter, searchQuery, sortOption]);
 
-  const counts = useMemo(
-    () => ({
+  const counts = useMemo(() => {
+    const nowTime = new Date().getTime();
+    return {
       total: tasks.length,
       all: tasks.length,
       pending: tasks.filter((t) => t.status === 'Pending').length,
       completed: tasks.filter((t) => t.status === 'Completed').length,
-    }),
-    [tasks]
-  );
+      overdue: tasks.filter(
+        (t) => t.status !== 'Completed' && new Date(t.deadline).getTime() < nowTime
+      ).length,
+    };
+  }, [tasks]);
 
   // Background Canvas Dynamic Class
   const canvasBgClass =
@@ -388,6 +418,7 @@ function TaskManagerContent() {
                       task={task}
                       index={idx}
                       onToggleStatus={handleToggleStatus}
+                      onViewTask={(t) => setViewingTask(t)}
                       onEditTask={(t) => {
                         setEditingTask(t);
                         setIsTaskModalOpen(true);
@@ -414,11 +445,15 @@ function TaskManagerContent() {
                       <Inbox className="w-6 h-6" />
                     </div>
                     <h3 className="text-sm font-bold mb-1">
-                      No tasks in this view
+                      {activeFilter === 'Overdue' && !searchQuery
+                        ? 'No overdue tasks 🎉'
+                        : 'No tasks in this view'}
                     </h3>
                     <p className="text-xs text-slate-400 max-w-sm mx-auto mb-5 leading-relaxed">
                       {searchQuery
                         ? `No tasks matching "${searchQuery}". Clear your search query or reset filter.`
+                        : activeFilter === 'Overdue'
+                        ? 'Great job! None of your pending tasks are past their deadline.'
                         : activeFilter !== 'All'
                         ? `You don't have any ${activeFilter.toLowerCase()} tasks in this category.`
                         : 'Get started by creating your first task in this workspace.'}
@@ -500,6 +535,22 @@ function TaskManagerContent() {
       </footer>
 
       {/* Modals & Dialogs */}
+      <ViewTaskModal
+        isOpen={!!viewingTask}
+        task={viewingTask}
+        onClose={() => setViewingTask(null)}
+        onEdit={(task) => {
+          setViewingTask(null);
+          setEditingTask(task);
+          setIsTaskModalOpen(true);
+        }}
+        onDelete={(task) => {
+          setViewingTask(null);
+          setDeletingTask(task);
+        }}
+        onToggleStatus={handleToggleStatus}
+      />
+
       <TaskModal
         isOpen={isTaskModalOpen}
         onClose={() => {

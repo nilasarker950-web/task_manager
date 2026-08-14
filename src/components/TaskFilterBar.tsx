@@ -10,7 +10,7 @@ interface TaskFilterBarProps {
   onStatusFilterChange: (status: FilterStatus) => void;
   sortOption: SortOption;
   onSortOptionChange: (sort: SortOption) => void;
-  counts: { all: number; pending: number; completed: number };
+  counts: { all: number; pending: number; completed: number; overdue?: number };
 }
 
 export const TaskFilterBar: React.FC<TaskFilterBarProps> = ({
@@ -23,6 +23,7 @@ export const TaskFilterBar: React.FC<TaskFilterBarProps> = ({
   counts,
 }) => {
   const { isDark } = useTheme();
+  const overdueCount = counts.overdue ?? 0;
 
   return (
     <div
@@ -120,6 +121,35 @@ export const TaskFilterBar: React.FC<TaskFilterBarProps> = ({
             }`}
           >
             {counts.completed}
+          </span>
+        </button>
+
+        <button
+          id="filter-tab-overdue"
+          onClick={() => onStatusFilterChange('Overdue')}
+          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-all duration-150 cursor-pointer hover:scale-[1.02] active:scale-[0.98] ${
+            statusFilter === 'Overdue'
+              ? isDark
+                ? 'bg-rose-950/80 text-rose-200 border border-rose-800 shadow-xs'
+                : 'bg-white text-rose-900 shadow-2xs'
+              : isDark
+              ? 'text-slate-400 hover:text-rose-300 hover:bg-slate-800/50'
+              : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60'
+          }`}
+        >
+          <span>Past Deadline</span>
+          <span
+            className={`px-1.5 py-0.2 rounded-full text-[10px] font-mono font-bold ${
+              statusFilter === 'Overdue'
+                ? isDark
+                  ? 'bg-rose-900/60 text-rose-200'
+                  : 'bg-rose-100 text-rose-900'
+                : isDark
+                ? 'bg-slate-800 text-slate-400'
+                : 'bg-slate-200 text-slate-600'
+            }`}
+          >
+            {overdueCount}
           </span>
         </button>
       </div>

@@ -129,19 +129,25 @@ export const TaskStats: React.FC<TaskStatsProps> = ({
         </div>
       </button>
 
-      {/* Deadline Urgency Tile */}
-      <div
-        className={`p-4 rounded-2xl border transition-all duration-200 ${
-          isDark
-            ? 'bg-slate-800/60 border-slate-700/80 hover:border-slate-600'
-            : 'bg-white border-slate-200/90 hover:border-slate-300'
+      {/* Deadline Urgency Tile (Past Deadline Filter) */}
+      <button
+        id="stat-overdue-tasks"
+        onClick={() => onSelectFilter('Overdue')}
+        className={`group text-left p-4 rounded-2xl border transition-all duration-200 hover:-translate-y-1 hover:shadow-lg cursor-pointer ${
+          activeFilter === 'Overdue'
+            ? isDark
+              ? 'bg-slate-800/90 border-rose-500 shadow-rose-950/40 ring-2 ring-rose-500/20'
+              : 'bg-white border-rose-500 shadow-rose-100/40 ring-2 ring-rose-500/10'
+            : isDark
+            ? 'bg-slate-800/60 border-slate-700/80 hover:border-slate-600 hover:shadow-slate-950/30'
+            : 'bg-white border-slate-200/90 hover:border-slate-300 hover:shadow-slate-200/40'
         }`}
       >
         <div className="flex items-center justify-between mb-2.5">
           <span className="text-[11px] font-bold uppercase tracking-wider text-rose-700 dark:text-rose-400">
             Past Deadline
           </span>
-          <div className="w-8 h-8 rounded-xl bg-rose-50 dark:bg-rose-950/50 flex items-center justify-center text-rose-600 dark:text-rose-400">
+          <div className="w-8 h-8 rounded-xl bg-rose-50 dark:bg-rose-950/50 group-hover:bg-rose-100 dark:group-hover:bg-rose-900/60 flex items-center justify-center text-rose-600 dark:text-rose-400 transition-all duration-200 group-hover:scale-110">
             <AlertTriangle className="w-4 h-4" />
           </div>
         </div>
@@ -157,7 +163,7 @@ export const TaskStats: React.FC<TaskStatsProps> = ({
             {overdueCount === 0 ? 'All on schedule' : overdueCount === 1 ? '1 overdue' : `${overdueCount} overdue`}
           </span>
         </div>
-      </div>
+      </button>
     </div>
   );
 };
